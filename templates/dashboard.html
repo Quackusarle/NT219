@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - CP-ABE Security System{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="fas fa-tachometer-alt text-primary"></i> Dashboard</h2>
+            <p class="text-muted">Quản lý dữ liệu và khóa CP-ABE của bạn</p>
+        </div>
+    </div>
+
+    <!-- User Info Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card info-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-user-circle fa-3x text-primary mb-3"></i>
+                    <h5>Tài khoản</h5>
+                    <p class="mb-1"><strong>{{ user.email }}</strong></p>
+                    <small class="text-muted">{{ user.get_full_name|default:"Chưa cập nhật tên" }}</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card info-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-tags fa-3x text-success mb-3"></i>
+                    <h5>Thuộc tính</h5>
+                    <p class="mb-1"><strong>{{ total_attributes }}</strong></p>
+                    <small class="text-muted">Attributes được gán</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card info-card">
+                <div class="card-body text-center">
+                    <i class="fas fa-database fa-3x text-warning mb-3"></i>
+                    <h5>Dữ liệu</h5>
+                    <p class="mb-1"><strong>{{ total_data_items }}</strong></p>
+                    <small class="text-muted">Files đã mã hóa</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ABE Key Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-key text-danger"></i> Trạng thái CP-ABE Key</h5>
+                </div>
+                <div class="card-body">
+                    <div id="key-status">
+                        <span class="badge bg-secondary">
+                            <i class="fas fa-spinner fa-spin"></i> Đang kiểm tra...
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Attributes -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-tags text-success"></i> Thuộc tính của bạn</h5>
+                </div>
+                <div class="card-body">
+                    {% if user_attributes %}
+                        <div class="attributes-list">
+                            {% for attr in user_attributes %}
+                                <span class="badge bg-primary me-1 mb-1">
+                                    {{ attr.attribute.name }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Được gán ngày {{ user_attributes.first.assigned_at|date:"d/m/Y" }}
+                        </small>
+                    {% else %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                            <p>Chưa có thuộc tính nào được gán</p>
+                            <small>Liên hệ quản trị viên để được gán attributes</small>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt text-primary"></i> Thao tác nhanh</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="refreshKey()">
+                            <i class="fas fa-sync-alt"></i> Làm mới Secret Key
+                        </button>
+                        <button class="btn btn-outline-success" onclick="showPublicKey()">
+                            <i class="fas fa-eye"></i> Xem Public Key
+                        </button>
+                        <button class="btn btn-outline-info" onclick="checkKeyStatus()">
+                            <i class="fas fa-check-circle"></i> Kiểm tra trạng thái
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Data Files -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5><i class="fas fa-folder text-warning"></i> Dữ liệu đã mã hóa</h5>
+                    <span class="badge bg-info">{{ total_data_items }} files</span>
+                </div>
+                <div class="card-body">
+                    {% if user_data %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th><i class="fas fa-file"></i> File</th>
+                                        <th><i class="fas fa-shield-alt"></i> Policy</th>
+                                        <th><i class="fas fa-calendar"></i> Ngày tải</th>
+                                        <th><i class="fas fa-cogs"></i> Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for data in user_data %}
+                                    <tr>
+                                        <td>
+                                            <i class="fas fa-file-alt text-muted me-2"></i>
+                                            <strong>{{ data.filename|default:"Untitled" }}</strong>
+                                            {% if data.description %}
+                                                <br><small class="text-muted">{{ data.description }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ data.policy.name }}
+                                            </span>
+                                            <br><small class="text-muted">{{ data.policy.policy_definition }}</small>
+                                        </td>
+                                        <td>
+                                            {{ data.uploaded_at|date:"d/m/Y H:i" }}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    onclick="checkDecryptAccess({{ data.id }}, '{{ data.policy.policy_definition }}')"
+                                                    title="Kiểm tra quyền giải mã">
+                                                <i class="fas fa-unlock"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-folder-open fa-3x mb-3"></i>
+                            <h5>Chưa có dữ liệu nào</h5>
+                            <p>Bạn chưa upload và mã hóa file nào</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal for displaying information -->
+<div class="modal fade" id="infoModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Thông tin</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %} 

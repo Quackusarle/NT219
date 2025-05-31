@@ -1,0 +1,51 @@
+/* Base styles cho navbar và layout cơ bản */
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Navbar styles */
+.navbar-brand {
+    font-weight: 600;
+    color: #2c3e50 !important;
+}
+
+.navbar-brand i {
+    color: #3498db;
+    margin-right: 8px;
+}
+
+.nav-link {
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: #3498db !important;
+}
+
+.nav-link i {
+    margin-right: 5px;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+    color: #3498db;
+}
+
+/* Alert messages */
+.alert {
+    border-radius: 8px;
+    border: none;
+}
+
+/* Main content spacing */
+main {
+    min-height: calc(100vh - 76px);
+}

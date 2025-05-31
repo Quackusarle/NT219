@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Trang chủ - CP-ABE Security System{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/home.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12">
+            <h1>Trang chủ</h1>
+            
+            {% if user.is_authenticated %}
+                <p>Chào mừng {{ user.email }}!</p>
+            {% else %}
+                <p>Vui lòng đăng nhập để sử dụng hệ thống.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/home.js' %}"></script>
+{% endblock %} 
