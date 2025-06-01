@@ -1,51 +1,100 @@
-/* Base styles cho navbar và layout cơ bản */
+/* Base CSS - Common styles for all pages */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f8f9fa;
 }
 
-/* Navbar styles */
+/* Navbar Styles */
+.navbar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
 .navbar-brand {
-    font-weight: 600;
-    color: #2c3e50 !important;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: white !important;
 }
 
-.navbar-brand i {
-    color: #3498db;
-    margin-right: 8px;
-}
-
-.nav-link {
+.navbar-nav .nav-link {
+    color: rgba(255,255,255,0.9) !important;
     font-weight: 500;
     transition: color 0.3s ease;
 }
 
-.nav-link:hover {
-    color: #3498db !important;
+.navbar-nav .nav-link:hover {
+    color: white !important;
 }
 
-.nav-link i {
-    margin-right: 5px;
+.btn-outline-light {
+    border-color: rgba(255,255,255,0.5);
+    color: white;
+    transition: all 0.3s ease;
 }
 
-/* Dropdown menu */
-.dropdown-menu {
-    border: none;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+.btn-outline-light:hover {
+    background-color: white;
+    color: #667eea;
+    border-color: white;
 }
 
-.dropdown-item:hover {
-    background-color: #f8f9fa;
-    color: #3498db;
+/* Container */
+.container {
+    max-width: 1200px;
 }
 
-/* Alert messages */
-.alert {
+/* Common button styles */
+.btn {
     border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border: none;
 }
 
-/* Main content spacing */
-main {
-    min-height: calc(100vh - 76px);
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+/* Alert styles */
+.alert {
+    border-radius: 10px;
+    border: none;
+}
+
+/* Card styles */
+.card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.2rem;
+    }
+    
+    .container {
+        padding: 0 15px;
+    }
 }

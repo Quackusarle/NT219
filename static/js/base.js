@@ -1,83 +1,166 @@
 /**
- * Base JavaScript - chỉ chứa functions cơ bản cho navbar và layout
+ * Base JavaScript - Common functions for all pages
  */
 
+// Global variables
+window.abeSystem = {
+    publicKey: null,
+    secretKey: null,
+    sessionKey: null
+};
+
+// Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('CP-ABE System Base loaded');
-    
-    // Initialize Bootstrap tooltips
-    initializeTooltips();
-    
-    // Auto-hide alerts after 5 seconds
-    autoHideAlerts();
+    console.log('Base JS loaded');
+    initializeABESystem();
 });
 
 /**
- * Initialize Bootstrap tooltips
+ * Initialize ABE system
  */
-function initializeTooltips() {
-    if (typeof bootstrap !== 'undefined') {
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+function initializeABESystem() {
+    // Check if user is authenticated
+    if (document.querySelector('[data-user-authenticated="true"]')) {
+        loadABEKeys();
     }
 }
 
 /**
- * Auto hide alert messages
+ * Load ABE keys from session storage
  */
-function autoHideAlerts() {
-    const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
-    alerts.forEach(function(alert) {
-        setTimeout(function() {
-            if (alert.parentNode) {
-                alert.classList.remove('show');
-                setTimeout(function() {
-                    if (alert.parentNode) {
-                        alert.remove();
-                    }
-                }, 150);
+function loadABEKeys() {
+    try {
+        // Load secret key from session storage
+        const secretKeyData = sessionStorage.getItem('abe_secret_key');
+        if (secretKeyData) {
+            window.abeSystem.secretKey = JSON.parse(secretKeyData);
+            console.log('ABE secret key loaded from session');
+        }
+        
+        // Load public key from session storage
+        const publicKeyData = sessionStorage.getItem('abe_public_key');
+        if (publicKeyData) {
+            window.abeSystem.publicKey = JSON.parse(publicKeyData);
+            console.log('ABE public key loaded from session');
+        }
+        
+    } catch (error) {
+        console.error('Error loading ABE keys:', error);
+    }
+}
+
+/**
+ * Get ABE secret key from server
+ */
+async function getSecretKey() {
+    try {
+        const response = await fetch('/api/abe/secret-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
             }
-        }, 5000);
-    });
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Store in session storage
+                sessionStorage.setItem('abe_secret_key', JSON.stringify(data.secret_key));
+                window.abeSystem.secretKey = data.secret_key;
+                console.log('Secret key retrieved and stored');
+                return data.secret_key;
+            }
+        }
+        throw new Error('Failed to get secret key');
+    } catch (error) {
+        console.error('Error getting secret key:', error);
+        return null;
+    }
 }
 
 /**
- * Check if user is authenticated
+ * Get ABE public key from server
  */
-function isAuthenticated() {
-    return document.body.dataset.authenticated === 'true';
+async function getPublicKey() {
+    try {
+        const response = await fetch('/api/abe/public-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                // Store in session storage
+                sessionStorage.setItem('abe_public_key', JSON.stringify(data.public_key));
+                window.abeSystem.publicKey = data.public_key;
+                console.log('Public key retrieved and stored');
+                return data.public_key;
+            }
+        }
+        throw new Error('Failed to get public key');
+    } catch (error) {
+        console.error('Error getting public key:', error);
+        return null;
+    }
 }
 
 /**
- * Show notification (utility function)
+ * Get CSRF token from cookie
+ */
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+/**
+ * Show notification
  */
 function showNotification(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 80px; right: 20px; z-index: 9999; min-width: 300px;';
-    
-    alertDiv.innerHTML = `
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
         ${message}
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
     
-    document.body.appendChild(alertDiv);
+    // Add to page
+    document.body.appendChild(notification);
     
-    // Auto remove after 4 seconds
+    // Auto remove after 5 seconds
     setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.classList.remove('show');
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.remove();
-                }
-            }, 150);
+        if (notification.parentNode) {
+            notification.remove();
         }
-    }, 4000);
+    }, 5000);
 }
 
-// Export global functions
-window.showNotification = showNotification;
-window.isAuthenticated = isAuthenticated; 
+/**
+ * Debug function to show all session storage
+ */
+function debugSessionStorage() {
+    console.log('=== Session Storage Debug ===');
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        const value = sessionStorage.getItem(key);
+        console.log(`${key}: ${value}`);
+    }
+    console.log('=== End Debug ===');
+} 
