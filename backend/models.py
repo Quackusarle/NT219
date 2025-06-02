@@ -99,27 +99,28 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     def generate_patient_id(self):
         """
-        Tạo patient ID an toàn và unique
-        Format: P + 10 ký tự random (chữ hoa + số)
-        Ví dụ: P1A2B3C4D5
-        """
-        max_attempts = 10
-        alphabet = string.ascii_uppercase + string.digits
+        Tạo patient ID unique 100% bằng UUID
         
-        for attempt in range(max_attempts):
-            # Sử dụng secrets để tạo random an toàn
-            random_part = ''.join(secrets.choice(alphabet) for _ in range(10))
-            patient_id = f"P{random_part}"
+        Chiến lược: Dùng UUID4 và lấy 10 ký tự đầu
+        - UUID4 có 32 ký tự hex → 2^128 combinations  
+        - Lấy 10 ký tự đầu → vẫn có 16^10 = 2^40 combinations
+        - Xác suất trùng: 1/(2^40) ≈ 1/1,000,000,000,000
+        
+        Format: P + 10 ký tự UUID (chữ hoa + số)
+        Ví dụ: PA1B2C3D4E, P9F8E7D6C5
+        """
+        import uuid
+        
+        while True:
+            # Tạo UUID4 và lấy 10 ký tự đầu  
+            uuid_str = str(uuid.uuid4()).replace('-', '').upper()[:10]
+            patient_id = f"P{uuid_str}"
             
-            # Kiểm tra unique trong database
+            # Kiểm tra unique (chỉ để chắc chắn, thực tế rất hiếm trùng)
             if not User.objects.filter(patient_id=patient_id).exists():
                 return patient_id
-        
-        # Fallback nếu không tạo được sau 10 lần thử
-        import time
-        timestamp = str(int(time.time()))[-6:]  # 6 số cuối timestamp
-        random_part = ''.join(secrets.choice(alphabet) for _ in range(4))
-        return f"P{timestamp}{random_part}"
+            
+            # Nếu trùng (xác suất 1/trillion), tạo UUID mới
     
     def __str__(self):
         return f"{self.email} ({self.patient_id})"
@@ -160,7 +161,7 @@ class Attribute(models.Model):
     )
     supports_patient_id = models.BooleanField(
         default=False,
-        help_text="Có hỗ trợ patient_id không? (chỉ family_member = True)"
+        help_text="Có hỗ trợ patient_id không? (patient=True, family_members=True)"
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -178,10 +179,9 @@ class UserAttribute(models.Model):
     Bảng trung gian lưu trữ attributes của từng user
     
     Ví dụ:
-    - User A có attribute 'patient' (không có patient_id)
+    - User A có attribute 'patient:P1234567890' (patient_id của chính họ)
     - User B có attribute 'doctor' (không có patient_id)  
-    - User C có attribute 'family_member' với patient_id='P1234567890'
-      (nghĩa là C là thành viên gia đình của bệnh nhân P1234567890)
+    - User C có attribute 'family_members:P1234567890' (thành viên gia đình của bệnh nhân P1234567890)
     """
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -198,7 +198,7 @@ class UserAttribute(models.Model):
     patient_id = models.CharField(
         max_length=50,
         null=True, blank=True,
-        help_text="Patient ID cụ thể (chỉ dành cho family_member)"
+        help_text="Patient ID cụ thể (dành cho patient và family_members)"
     )
     assigned_at = models.DateTimeField(auto_now_add=True)
 
@@ -214,29 +214,44 @@ class UserAttribute(models.Model):
 
     def clean(self):
         """Validation logic"""
-        # Rule 1: Chỉ family_member mới được có patient_id
+        # Rule 1: Chỉ những attribute có supports_patient_id=True mới được có patient_id
         if self.patient_id and not self.attribute.supports_patient_id:
             raise ValidationError(
                 f"Attribute '{self.attribute.name}' không được có patient_id"
             )
         
-        # Rule 2: family_member bắt buộc phải có patient_id
+        # Rule 2: family_members bắt buộc phải có patient_id
         if (self.attribute.supports_patient_id and 
-            self.attribute.name == 'family_member' and 
+            self.attribute.name == 'family_members' and 
             not self.patient_id):
             raise ValidationError(
-                "Attribute 'family_member' bắt buộc phải có patient_id"
+                "Attribute 'family_members' bắt buộc phải có patient_id"
             )
         
-        # Rule 3: patient_id phải tồn tại trong database
+        # Rule 3: patient bắt buộc phải có patient_id của chính mình
+        if (self.attribute.supports_patient_id and 
+            self.attribute.name == 'patient'):
+            if not self.patient_id:
+                raise ValidationError(
+                    "Attribute 'patient' bắt buộc phải có patient_id"
+                )
+            # Patient phải có patient_id của chính mình
+            if (hasattr(self.user, 'patient_id') and 
+                self.patient_id != self.user.patient_id):
+                raise ValidationError(
+                    f"Attribute 'patient' chỉ có thể có patient_id của chính user đó"
+                )
+        
+        # Rule 4: patient_id phải tồn tại trong database
         if self.patient_id:
             if not User.objects.filter(patient_id=self.patient_id).exists():
                 raise ValidationError(
                     f"Không tìm thấy bệnh nhân với ID '{self.patient_id}'"
                 )
         
-        # Rule 4: Không thể tự làm family_member của chính mình
-        if (self.patient_id and 
+        # Rule 5: Chỉ family_members không được tự trỏ đến chính mình
+        if (self.attribute.name == 'family_members' and 
+            self.patient_id and 
             hasattr(self.user, 'patient_id') and 
             self.patient_id == self.user.patient_id):
             raise ValidationError(
@@ -526,22 +541,24 @@ def _create_patient_attribute(user_instance):
         user_instance: User object vừa được tạo
     """
     try:
-        # Lấy hoặc tạo attribute 'patient'
+        # Lấy hoặc tạo attribute 'patient' với supports_patient_id=True
         patient_attr, created = Attribute.objects.get_or_create(
             name='patient',
             defaults={
-                'description': 'Bệnh nhân - thuộc tính mặc định cho mọi user',
-                'supports_patient_id': False
+                'description': 'Bệnh nhân - có quyền truy cập dữ liệu bệnh nhân cụ thể',
+                'supports_patient_id': True
             }
         )
         
-        # Gán attribute cho user
+        # Gán attribute 'patient' cho user với patient_id của chính họ
+        # Ví dụ: user có patient_id='P1234567890' sẽ có attribute 'patient:P1234567890'
         UserAttribute.objects.get_or_create(
             user=user_instance,
-            attribute=patient_attr
+            attribute=patient_attr,
+            patient_id=user_instance.patient_id  # Quan trọng: dùng patient_id của chính user
         )
         
-        logger.info(f"Created default patient attribute for user {user_instance.email}")
+        logger.info(f"Created patient attribute for user {user_instance.email} with patient_id {user_instance.patient_id}")
         
     except Exception as e:
-        logger.error(f"Error creating default patient attribute for user {user_instance.id}: {e}")
+        logger.error(f"Error creating patient attribute for user {user_instance.id}: {e}")

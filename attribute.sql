@@ -1,6 +1,9 @@
+-- CP-ABE ATTRIBUTE SYSTEM
+-- Thuộc tính dựa theo sơ đồ CP-ABE từ ảnh người dùng gửi
+
 -- 1. BASIC ROLES
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
-VALUES ('patient', 'Bệnh nhân - thuộc tính mặc định', false, NOW())
+VALUES ('patient', 'Bệnh nhân - có quyền truy cập dữ liệu bệnh nhân cụ thể', true, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
@@ -8,7 +11,7 @@ VALUES ('family_members', 'Thành viên gia đình - có quyền truy cập dữ
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
-VALUES ('doctor', 'Bác sĩ - có quyền truy cập dữ liệu bệnh nhân cụ thể', false, NOW())
+VALUES ('doctor', 'Bác sĩ - không cần patient_id cụ thể', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 -- 2. HOSPITAL STAFF
@@ -29,7 +32,7 @@ VALUES ('nurse', 'Y tá', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
-VALUES ('physician', 'Bác sĩ', false, NOW())
+VALUES ('physician', 'Bác sĩ lâm sàng', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
@@ -42,11 +45,11 @@ VALUES ('researcher', 'Nhà nghiên cứu', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
-VALUES ('md', 'Tiến sĩ Y khoa', false, NOW())
+VALUES ('md_degree', 'Bằng Tiến sĩ Y khoa', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 
-VALUES ('health_science_centre', 'Trung tâm Khoa học Y tế', false, NOW())
+VALUES ('health_science_degree', 'Bằng Khoa học Y tế', false, NOW())
 ON CONFLICT (name) DO NOTHING;
 
 INSERT INTO backend_attribute (name, description, supports_patient_id, created_at) 

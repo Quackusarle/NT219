@@ -267,7 +267,7 @@ def add_family_member(family_user, patient_user):
             print("Đã thêm thành viên gia đình thành công")
     """
     try:
-        family_attr = Attribute.objects.get(name='family_member')
+        family_attr = Attribute.objects.get(name='family_members')
         
         user_attr, created = UserAttribute.objects.get_or_create(
             user=family_user,
@@ -281,7 +281,7 @@ def add_family_member(family_user, patient_user):
         return created
         
     except Attribute.DoesNotExist:
-        logger.error("Attribute 'family_member' does not exist")
+        logger.error("Attribute 'family_members' does not exist")
         return False
     except Exception as e:
         logger.error(f"Error adding family member: {e}")
@@ -302,7 +302,7 @@ def remove_family_member(family_user, patient_user):
     try:
         UserAttribute.objects.filter(
             user=family_user,
-            attribute__name='family_member',
+            attribute__name='family_members',
             patient_id=patient_user.patient_id
         ).delete()
         
@@ -331,7 +331,7 @@ def get_family_members_of_patient(patient_user):
             print(f"Family member: {member.email}")
     """
     return User.objects.filter(
-        attributes_possessed__attribute__name='family_member',
+        attributes_possessed__attribute__name='family_members',
         attributes_possessed__patient_id=patient_user.patient_id
     ).distinct()
 
@@ -348,7 +348,7 @@ def get_patients_of_family_member(family_user):
     """
     patient_ids = UserAttribute.objects.filter(
         user=family_user,
-        attribute__name='family_member'
+        attribute__name='family_members'
     ).values_list('patient_id', flat=True)
     
     return User.objects.filter(patient_id__in=patient_ids)
@@ -361,7 +361,7 @@ def add_user_attribute(user, attribute_name, patient_id=None):
     Args:
         user: User object
         attribute_name: str (tên attribute)
-        patient_id: str (optional, chỉ cho family_member)
+        patient_id: str (optional, chỉ cho family_members và patient)
         
     Returns:
         tuple: (UserAttribute object, created boolean)
@@ -371,7 +371,10 @@ def add_user_attribute(user, attribute_name, patient_id=None):
         add_user_attribute(user, 'doctor')
         
         # Thêm family member
-        add_user_attribute(family_user, 'family_member', patient_id='P1234567890')
+        add_user_attribute(family_user, 'family_members', patient_id='P1234567890')
+        
+        # Thêm patient (tự động sử dụng patient_id của chính user)
+        add_user_attribute(user, 'patient', patient_id=user.patient_id)
     """
     try:
         attribute = Attribute.objects.get(name=attribute_name)
