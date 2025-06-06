@@ -11,3 +11,6 @@ class BackendConfig(AppConfig):
             print("Charm-Crypto initialized successfully via AppConfig.")
         except Exception as e:
             print(f"Error initializing Charm-Crypto: {e}")
+
+        import backend.signals
+        print("Backend signals imported.")
