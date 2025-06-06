@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% load i18n allauth widget_tweaks %}
+
+{% block title %}{% trans "Recovery Codes" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<main class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8 col-xl-7">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h3 class="mb-0">{% trans "Your Recovery Codes" %}</h3>
+                    </div>
+                    <div class="card-body p-4 p-md-5">
+                        <div id="recovery-codes-section">
+                            <div class="alert alert-warning d-flex align-items-center border-0" role="alert" style="background-color: #fff3cd;">
+                                <i class="fas fa-shield-alt fa-2x me-3"></i>
+                                <div>
+                                    <strong>{% trans "Store these codes in a safe place." %}</strong>
+                                    <p class="mb-0 mt-1">{% trans "If you lose your device, these codes are the only way to regain access to your account. Each code can only be used once." %}</p>
+                                </div>
+                            </div>
+
+                            {% if unused_codes %}
+                            <p class="text-muted mt-4">
+                                {% blocktranslate trimmed count unused_count=unused_codes|length %}
+                                You have <strong>{{ unused_count }}</strong> of {{ total_count }} recovery code remaining.
+                                {% plural %}
+                                You have <strong>{{ unused_count }}</strong> of {{ total_count }} recovery codes remaining.
+                                {% endblocktranslate %}
+                            </p>
+
+                            <!-- Clean grid display for codes -->
+                            <div class="row g-3 text-center font-monospace my-4">
+                                {% for code_item in unused_codes %}
+                                <div class="col-md-6">
+                                    <div class="p-2 bg-light border rounded recovery-code-item">{{ code_item }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            {% else %}
+                            <div class="text-center my-5">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <p class="text-muted h5">{% trans "No unused recovery codes available." %}</p>
+                                <p>{% trans "Please generate a new set of codes." %}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Primary Actions -->
+                        {% if unused_codes %}
+                        <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+                            <button class="btn btn-outline-primary" id="copy-codes-btn">
+                                <i class="fas fa-copy me-1"></i> {% trans "Copy All" %}
+                            </button>
+                            <a href="{% url 'mfa_download_recovery_codes' %}" class="btn btn-outline-primary">
+                                <i class="fas fa-download me-1"></i> {% trans "Download" %}
+                            </a>
+                            <button class="btn btn-outline-primary" onclick="window.print()">
+                                <i class="fas fa-print me-1"></i> {% trans "Print" %}
+                            </button>
+                        </div>
+                        {% endif %}
+
+                        <hr>
+
+                        <!-- Secondary/Destructive Actions -->
+                        <div class="text-center mt-4">
+                            <p class="text-muted small">{% trans "Generating new codes will invalidate all previous codes." %}</p>
+                            <a href="{% url 'mfa_generate_recovery_codes' %}" class="btn btn-primary" onclick="return confirm('{% trans 'Are you sure? This will invalidate all of your current codes.' %}')">
+                                <i class="fas fa-sync-alt me-1"></i> {% trans "Generate New Codes" %}
+                            </a>
+                        </div>
+                        
+                        <div class="text-center mt-4">
+                             <a href="{% url 'mfa_index' %}" class="text-decoration-none small">
+                                <i class="fas fa-arrow-left me-1"></i> {% trans "Back to 2FA Settings" %}
+                             </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+{# CSS to hide non-essential elements during printing #}
+<style>
+@media print {
+    body > *:not(main) { display: none; }
+    main, .card, .card-body {
+        box-shadow: none !important;
+        border: none !important;
+        background: none !important;
+    }
+    main { padding-top: 0 !important; }
+    .btn, a, hr, .alert-warning strong:first-child + p, .text-muted, .small, #recovery-codes-section + .d-flex { display: none !important; }
+    .alert-warning { border: 1px dashed #ccc !important; }
+}
+</style>
+
+{# JavaScript for the "Copy All" button #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const copyButton = document.getElementById('copy-codes-btn');
+    if (copyButton) {
+        copyButton.addEventListener('click', function() {
+            const codeElements = document.querySelectorAll('.recovery-code-item');
+            const codes = Array.from(codeElements).map(el => el.textContent.trim()).join('\n');
+            
+            navigator.clipboard.writeText(codes).then(() => {
+                const originalText = copyButton.innerHTML;
+                copyButton.innerHTML = `<i class="fas fa-check me-1"></i> {% trans "Copied!" %}`;
+                copyButton.classList.add('btn-success');
+                copyButton.classList.remove('btn-outline-primary');
+                setTimeout(() => {
+                    copyButton.innerHTML = originalText;
+                    copyButton.classList.remove('btn-success');
+                    copyButton.classList.add('btn-outline-primary');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy codes: ', err);
+            });
+        });
+    }
+});
+</script>
+{% endblock content %}

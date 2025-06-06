@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load widget_tweaks i18n %}
+
+{% block title %}{% translate "Two-Factor Authentication" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<main>
+    <section class="py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-8 col-lg-6 col-xl-5 centered-form-container">
+                    <div class="card">
+                        <div class="card-body p-4 p-md-5">
+                            <div class="text-center mb-4">
+                                <i class="fas fa-shield-alt fa-3x text-primary mb-3"></i>
+                                <h1 class="h3 mb-1 fw-normal form-signin-heading">{% translate "Two-Factor Authentication" %}</h1>
+                                <p class="form-signin-subheading">
+                                    {% translate "Enter the code from your authenticator app or use a recovery code." %}
+                                </p>
+                            </div>
+                            
+                            <form method="post" novalidate>
+                                {% csrf_token %}
+                                
+                                {% if form.non_field_errors %}
+                                    <div class="alert alert-danger" role="alert">
+                                        {% for error in form.non_field_errors %}
+                                            {{ error }}<br>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+
+                                {% for field in form %}
+                                    <div class="mb-3">
+                                        {% render_field field class+="form-control form-control-lg" placeholder=field.label %}
+                                        {% if field.help_text %}
+                                            <small class="form-text text-muted">{{ field.help_text }}</small>
+                                        {% endif %}
+                                        {% for error in field.errors %}
+                                            <div class="invalid-feedback d-block">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                                {% endfor %}
+                                
+                                <div class="d-grid mt-4">
+                                    <button class="btn btn-primary btn-lg" type="submit">
+                                        <i class="fas fa-sign-in-alt me-2"></i>{% translate "Sign In" %}
+                                    </button>
+                                </div>
+                            </form>
+                            {% comment %}
+                            This form structure assumes django-allauth-mfa uses fields like 'otp_token' or 'recovery_code'.
+                            If your form is different (e.g., just `{{ form.as_p }}`), you might need to adjust.
+                            A common structure for allauth-mfa's authenticate form is one field for OTP/Recovery.
+                            The generic loop `{% for field in form %}` is robust.
+                            The original `{{form}}` would render it as a table by default if not using widget_tweaks or crispy_forms.
+                            This improved version makes each field take full width and look more modern.
+                            {% endcomment %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+{% endblock content %}

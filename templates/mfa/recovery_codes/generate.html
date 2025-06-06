@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% load widget_tweaks i18n %}
+
+{% block title %}{% trans "Generate New Recovery Codes" %} - {{ block.super }}{% endblock %}
+
+{% block content %}
+<main class="py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6 col-xl-5">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4 p-md-5 text-center">
+                        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+                        <h1 class="h3 mb-3 fw-bold">{% trans "Generate New Recovery Codes?" %}</h1>
+
+                        <div class="alert alert-danger text-start" role="alert">
+                            <h4 class="alert-heading">{% trans "Warning" %}</h4>
+                            <p>{% trans "You are about to generate a new set of codes. This will permanently invalidate all of your old, unused recovery codes." %}</p>
+                            <hr>
+                            <p class="mb-0"><strong>{% trans "This action cannot be undone." %}</strong></p>
+                        </div>
+
+                        <form method="post" class="mt-4">
+                            {% csrf_token %}
+                            <div class="d-grid">
+                                <button class="btn btn-danger btn-lg" type="submit">
+                                    <i class="fas fa-sync-alt me-1"></i> {% trans "Confirm and Generate New Codes" %}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div class="mt-3">
+                            <a href="{% url 'mfa_index' %}" class="text-decoration-none">
+                                <i class="fas fa-arrow-left me-1"></i> {% trans "Cancel and return to settings" %}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+</main>
+{% endblock content %}
