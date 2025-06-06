@@ -1,0 +1,11 @@
+hypothesis==6.133.2
+pyparsing==2.4.0
+python-dotenv==1.1.0
+django==5.2.1
+django-allauth==65.9.0
+psycopg2-binary==2.9.10
+argon2-cffi==23.1.0
+pyotp==2.9.0
+qrcode==8.2
+pillow==11.2.1
+django-widget-tweaks==1.5.0
