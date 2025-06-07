@@ -6,7 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from backend.abe_utils import (
     get_charm_group,
-    get_ac17_scheme,
+    get_waters11_scheme,
     PK_FILE_PATH,
     MSK_FILE_PATH,
     ABE_PARAMS_DIR,
@@ -34,26 +34,26 @@ def serialize_charm_object(group, charm_object):
             return charm_object
 
 class Command(BaseCommand):
-    help = ('Sets up the CP-ABE AC17 system: generates and saves '
+    help = ('Sets up the CP-ABE Waters11 system: generates and saves '
             'Public Parameters (PK) and Master Secret Key (MSK) using Charm-Crypto.')
 
     def handle(self, *args, **options):
-        self.stdout.write(self.style.NOTICE("Initializing CP-ABE AC17 setup using Charm-Crypto..."))
+        self.stdout.write(self.style.NOTICE("Initializing CP-ABE Waters11 setup using Charm-Crypto..."))
 
         try:
             group = get_charm_group()
-            ac17_scheme = get_ac17_scheme()
+            waters11_scheme = get_waters11_scheme()
 
-            if group is None or ac17_scheme is None:
-                raise CommandError("Charm-Crypto group or AC17 scheme not initialized.")
+            if group is None or waters11_scheme is None:
+                raise CommandError("Charm-Crypto group or Waters11 scheme not initialized.")
 
-            self.stdout.write("Charm-Crypto group and AC17 scheme retrieved.")
+            self.stdout.write("Charm-Crypto group and Waters11 scheme retrieved.")
             # Sửa lỗi hiển thị groupType:
             self.stdout.write(f"Using pairing group: {group.groupType()}")
-            self.stdout.write(f"AC17 scheme assumption size: {ac17_scheme.assump_size}")
+            self.stdout.write(f"Waters11 scheme universe size: {waters11_scheme.uni_size}")
 
             self.stdout.write("Generating Public Parameters (PK) and Master Secret Key (MSK)...")
-            pk_charm, msk_charm = ac17_scheme.setup() # Đây là các dict chứa pairing.Element
+            pk_charm, msk_charm = waters11_scheme.setup() # Đây là các dict chứa pairing.Element
             self.stdout.write(self.style.SUCCESS("PK and MSK generated successfully by Charm-Crypto."))
 
             os.makedirs(ABE_PARAMS_DIR, exist_ok=True)
@@ -87,7 +87,7 @@ class Command(BaseCommand):
             except Exception as e:
                 raise CommandError(f"Error saving serialized MSK: {e}")
 
-            self.stdout.write(self.style.SUCCESS("CP-ABE AC17 system setup command finished successfully."))
+            self.stdout.write(self.style.SUCCESS("CP-ABE Waters11 system setup command finished successfully."))
 
         except ImproperlyConfigured as e:
             raise CommandError(f"Configuration error: {e}")

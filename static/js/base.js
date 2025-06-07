@@ -6,7 +6,8 @@
 window.abeSystem = {
     publicKey: null,
     secretKey: null,
-    sessionKey: null
+    attributeMapping: null,
+    schemeInfo: null
 };
 
 // Initialize when DOM is loaded
@@ -22,6 +23,8 @@ function initializeABESystem() {
     // Check if user is authenticated
     if (document.querySelector('[data-user-authenticated="true"]')) {
         loadABEKeys();
+        // Auto-load public key and mappings
+        loadPublicKeyAndMappings();
     }
 }
 
@@ -44,8 +47,41 @@ function loadABEKeys() {
             console.log('ABE public key loaded from session');
         }
         
+        // Load attribute mapping from session storage
+        const attributeMappingData = sessionStorage.getItem('abe_attribute_mapping');
+        if (attributeMappingData) {
+            window.abeSystem.attributeMapping = JSON.parse(attributeMappingData);
+            console.log('ABE attribute mapping loaded from session');
+        }
+        
+        // Load scheme info from session storage
+        const schemeInfoData = sessionStorage.getItem('abe_scheme_info');
+        if (schemeInfoData) {
+            window.abeSystem.schemeInfo = JSON.parse(schemeInfoData);
+            console.log('ABE scheme info loaded from session:', window.abeSystem.schemeInfo);
+        }
+        
     } catch (error) {
         console.error('Error loading ABE keys:', error);
+    }
+}
+
+/**
+ * Load public key and mappings automatically
+ */
+async function loadPublicKeyAndMappings() {
+    try {
+        // Check if already loaded
+        if (window.abeSystem.publicKey && window.abeSystem.attributeMapping) {
+            return;
+        }
+        
+        const data = await getPublicKey();
+        if (data) {
+            console.log('Public key and mappings loaded automatically');
+        }
+    } catch (error) {
+        console.error('Error auto-loading public key:', error);
     }
 }
 
@@ -63,13 +99,13 @@ async function getSecretKey() {
         });
         
         if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                // Store in session storage
-                sessionStorage.setItem('abe_secret_key', JSON.stringify(data.secret_key));
-                window.abeSystem.secretKey = data.secret_key;
+            const result = await response.json();
+            if (result.success) {
+                // Store in session storage - consistent data access
+                sessionStorage.setItem('abe_secret_key', JSON.stringify(result.data));
+                window.abeSystem.secretKey = result.data;
                 console.log('Secret key retrieved and stored');
-                return data.secret_key;
+                return result.data;
             }
         }
         throw new Error('Failed to get secret key');
@@ -93,18 +129,55 @@ async function getPublicKey() {
         });
         
         if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                // Store in session storage
-                sessionStorage.setItem('abe_public_key', JSON.stringify(data.public_key));
-                window.abeSystem.publicKey = data.public_key;
-                console.log('Public key retrieved and stored');
-                return data.public_key;
+            const result = await response.json();
+            if (result.success) {
+                // Store in session storage - Waters11 format
+                sessionStorage.setItem('abe_public_key', JSON.stringify(result.data.public_key));
+                sessionStorage.setItem('abe_attribute_mapping', JSON.stringify(result.data.attribute_mapping));
+                sessionStorage.setItem('abe_scheme_info', JSON.stringify(result.data.scheme_info));
+                
+                window.abeSystem.publicKey = result.data.public_key;
+                window.abeSystem.attributeMapping = result.data.attribute_mapping;
+                window.abeSystem.schemeInfo = result.data.scheme_info;
+                
+                console.log('Waters11 public key and mappings retrieved and stored');
+                console.log('Scheme info:', result.data.scheme_info);
+                return result.data;
             }
         }
         throw new Error('Failed to get public key');
     } catch (error) {
         console.error('Error getting public key:', error);
+        return null;
+    }
+}
+
+/**
+ * Get session secret key from server
+ */
+async function getSessionSecretKey() {
+    try {
+        const response = await fetch('/api/abe/session-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                // Store in session storage
+                sessionStorage.setItem('abe_secret_key', JSON.stringify(result.data));
+                window.abeSystem.secretKey = result.data;
+                console.log('Session secret key retrieved:', result.source);
+                return result.data;
+            }
+        }
+        throw new Error('Failed to get session secret key');
+    } catch (error) {
+        console.error('Error getting session secret key:', error);
         return null;
     }
 }
@@ -153,14 +226,31 @@ function showNotification(message, type = 'info') {
 }
 
 /**
- * Debug function to show all session storage
+ * Debug function to show ABE system status
  */
-function debugSessionStorage() {
-    console.log('=== Session Storage Debug ===');
+function debugABESystem() {
+    console.log('=== ABE System Debug ===');
+    console.log('Public Key:', !!window.abeSystem.publicKey);
+    console.log('Secret Key:', !!window.abeSystem.secretKey);
+    console.log('Attribute Mapping:', !!window.abeSystem.attributeMapping);
+    console.log('Scheme Info:', window.abeSystem.schemeInfo);
+    
+    if (window.abeSystem.secretKey) {
+        console.log('User Attributes:', window.abeSystem.secretKey.attributes);
+    }
+    
+    console.log('=== Session Storage ===');
     for (let i = 0; i < sessionStorage.length; i++) {
         const key = sessionStorage.key(i);
-        const value = sessionStorage.getItem(key);
-        console.log(`${key}: ${value}`);
+        if (key.startsWith('abe_')) {
+            console.log(`${key}: ${!!sessionStorage.getItem(key)}`);
+        }
     }
     console.log('=== End Debug ===');
-} 
+}
+
+// Make functions globally available
+window.getSecretKey = getSecretKey;
+window.getPublicKey = getPublicKey;
+window.getSessionSecretKey = getSessionSecretKey;
+window.debugABESystem = debugABESystem; 

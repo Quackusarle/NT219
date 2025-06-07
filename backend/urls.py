@@ -8,7 +8,7 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
     path('health/', views.health_check, name='health_check'),
     
-    # CP-ABE API endpoints
+    # CP-ABE Waters11 API endpoints
     path('api/abe/secret-key/', views.get_user_secret_key, name='get_user_secret_key'),
     path('api/abe/public-key/', views.get_public_parameters, name='get_public_parameters'),
     path('api/abe/session-key/', views.get_session_secret_key, name='get_session_secret_key'),

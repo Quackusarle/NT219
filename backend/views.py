@@ -5,7 +5,7 @@ from django.contrib.auth import login
 from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 from allauth.account.signals import user_logged_in
@@ -42,7 +42,7 @@ def dashboard_view(request):
 @require_http_methods(["GET"])
 def get_user_secret_key(request):
     """
-    API endpoint để lấy CP-ABE secret key của user hiện tại.
+    API endpoint để lấy CP-ABE Waters11 secret key của user hiện tại.
     """
     try:
         # Generate secret key cho user
@@ -68,10 +68,11 @@ def get_user_secret_key(request):
             'message': 'Error generating secret key'
         }, status=500)
 
+@ensure_csrf_cookie
 @require_http_methods(["GET"])
 def get_public_parameters(request):
     """
-    API endpoint để lấy CP-ABE public parameters.
+    API endpoint để lấy CP-ABE Waters11 public parameters.
     Endpoint này có thể public vì PK không cần bảo mật.
     """
     try:
@@ -79,7 +80,7 @@ def get_public_parameters(request):
         
         return JsonResponse({
             'success': True,
-            'public_key': pk_data,
+            'data': pk_data,
             'message': 'Public parameters retrieved successfully'
         })
         
@@ -113,7 +114,8 @@ def health_check(request):
     return JsonResponse({
         'status': 'healthy',
         'authenticated': request.user.is_authenticated,
-        'user': request.user.email if request.user.is_authenticated else None
+        'user': request.user.email if request.user.is_authenticated else None,
+        'scheme': 'waters11'
     })
 
 # Signal handler để tự động load key khi user đăng nhập
@@ -129,7 +131,7 @@ def handle_user_login(sender, request, user, **kwargs):
         
         # Store key data vào session
         request.session['abe_secret_key'] = key_data
-        request.session['abe_key_generated_at'] = str(user.last_login)
+        request.session['abe_key_generated_at'] = str(user.last_login or 'now')
         
         print(f"ABE secret key generated and stored in session for user: {user.email}")
         
@@ -143,27 +145,38 @@ def get_session_secret_key(request):
     """
     Lấy secret key từ session (đã được generate khi login).
     """
-    key_data = request.session.get('abe_secret_key')
-    
-    if key_data:
-        return JsonResponse({
-            'success': True,
-            'data': key_data,
-            'message': 'Secret key retrieved from session'
-        })
-    else:
-        # Nếu không có trong session, generate mới
-        try:
-            key_data = generate_user_secret_key(request.user)
-            request.session['abe_secret_key'] = key_data            
+    try:
+        key_data = request.session.get('abe_secret_key')
+        
+        if key_data:
             return JsonResponse({
                 'success': True,
                 'data': key_data,
-                'message': 'Secret key generated and stored in session'
+                'message': 'Secret key retrieved from session',
+                'source': 'session'
             })
-        except Exception as e:
+        else:
+            # Nếu không có trong session, generate mới
+            key_data = generate_user_secret_key(request.user)
+            request.session['abe_secret_key'] = key_data
+            
             return JsonResponse({
-                'success': False,
-                'error': str(e),
-                'message': 'Error generating secret key'
-            }, status=500)
+                'success': True,
+                'data': key_data,
+                'message': 'Secret key generated and stored in session',
+                'source': 'generated'
+            })
+            
+    except ValueError as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'User has no attributes assigned'
+        }, status=400)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Error generating secret key'
+        }, status=500)

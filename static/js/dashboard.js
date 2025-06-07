@@ -29,14 +29,22 @@ async function checkKeyStatus() {
             return;
         }
         
-        // Try to get key from server
-        const response = await fetch('/api/abe/session-key/');
+        // Try to get key from server session
+        const response = await fetch('/api/abe/session-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
         const data = await response.json();
         
         if (data.success) {
             // Store in session storage
             sessionStorage.setItem('abe_secret_key', JSON.stringify(data.data));
-            updateKeyStatus('success', 'Secret Key đã được tải', data.data.attributes);
+            window.abeSystem.secretKey = data.data;
+            updateKeyStatus('success', `Secret Key đã được tải (${data.source})`, data.data.attributes);
         } else {
             updateKeyStatus('error', 'Không thể tải Secret Key', null, data.message);
         }
@@ -120,12 +128,20 @@ async function refreshKey() {
     try {
         updateKeyStatus('loading', 'Đang tạo Secret Key mới...');
         
-        const response = await fetch('/api/abe/secret-key/');
+        const response = await fetch('/api/abe/secret-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
         const data = await response.json();
         
         if (data.success) {
             // Update session storage
             sessionStorage.setItem('abe_secret_key', JSON.stringify(data.data));
+            window.abeSystem.secretKey = data.data;
             updateKeyStatus('success', 'Secret Key đã được làm mới', data.data.attributes);
             showNotification('Secret Key đã được làm mới thành công!', 'success');
         } else {
@@ -145,23 +161,48 @@ async function refreshKey() {
  */
 async function showPublicKey() {
     try {
-        const response = await fetch('/api/abe/public-key/');
+        const response = await fetch('/api/abe/public-key/', {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
+            }
+        });
+        
         const data = await response.json();
         
         if (data.success) {
             const modalTitle = document.getElementById('modalTitle');
             const modalBody = document.getElementById('modalBody');
             
-            modalTitle.textContent = 'Public Key Information';
+            modalTitle.textContent = 'Waters11 Public Key Information';
             modalBody.innerHTML = `
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle"></i>
-                    Public Key được sử dụng để mã hóa dữ liệu. Key này có thể chia sẻ công khai.
+                    Waters11 Public Key và Attribute Mapping được sử dụng để mã hóa dữ liệu.
                 </div>
+                
+                <h6>Scheme Information:</h6>
+                <div class="bg-light p-2 mb-3">
+                    <small>
+                        <strong>Type:</strong> ${data.data.scheme_info.type}<br>
+                        <strong>Universe Size:</strong> ${data.data.scheme_info.uni_size}
+                    </small>
+                </div>
+                
+                <h6>Attribute Mapping:</h6>
+                <div class="bg-light p-2 mb-3" style="max-height: 150px; overflow-y: auto;">
+                    <small>
+                        ${Object.entries(data.data.attribute_mapping.name_to_int)
+                          .map(([name, int]) => `<span class="badge bg-primary me-1">${name}:${int}</span>`)
+                          .join('')}
+                    </small>
+                </div>
+                
+                <h6>Public Key Data:</h6>
                 <div class="text-break">
-                    <strong>Public Key Data:</strong>
-                    <pre class="bg-light p-2 mt-2" style="max-height: 300px; overflow-y: auto; font-size: 0.8rem;">
-${JSON.stringify(data.public_key, null, 2)}
+                    <pre class="bg-light p-2 mt-2" style="max-height: 200px; overflow-y: auto; font-size: 0.75rem;">
+${JSON.stringify(data.data.public_key, null, 2)}
                     </pre>
                 </div>
             `;
@@ -278,4 +319,21 @@ function showNotification(message, type = 'info') {
 window.refreshKey = refreshKey;
 window.showPublicKey = showPublicKey;
 window.checkKeyStatus = checkKeyStatus;
-window.checkDecryptAccess = checkDecryptAccess; 
+window.checkDecryptAccess = checkDecryptAccess;
+
+// Helper function to get CSRF token
+function getCSRFToken() {
+    const name = 'csrftoken';
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+} 
