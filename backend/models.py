@@ -146,59 +146,111 @@ class AccessPolicy(models.Model):
         verbose_name_plural = "Chính sách truy cập"
         ordering = ['name']
 
-class ProtectedData(models.Model):
-    """Model lưu trữ dữ liệu đã được mã hóa bằng CP-ABE Waters11"""
+# ==================== MEDICAL DATA ====================
+
+def generate_case_id():
+    """Tạo mã định danh hồ sơ bệnh án"""
+    return f"CASE-{uuid.uuid4().hex[:8].upper()}"
+
+class MedicalData(models.Model):
+    """Model lưu trữ dữ liệu y tế đã được mã hóa bằng AES và CP-ABE Waters11"""
     owner_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True, blank=True,
-        related_name="owned_data",
-        help_text="User đã upload và mã hóa dữ liệu này"
+        related_name="owned_medical_data",
+        help_text="User đã tạo dữ liệu y tế này"
     )
     
-    policy_template = models.ForeignKey(
-        AccessPolicy,
-        on_delete=models.PROTECT,
-        related_name="protected_data_items",
-        help_text="Chính sách được sử dụng"
+    # THÊM MỚI: Patient ID không mã hóa để phân biệt các hồ sơ
+    patient_id = models.CharField(
+        max_length=50,
+        null=True, blank=True,
+        help_text="Mã số bệnh nhân (không mã hóa) để phân biệt các hồ sơ"
     )
     
-    # Encrypted data
-    abe_encrypted_aes_key_blob = models.BinaryField(
-        help_text="AES key đã được mã hóa bằng CP-ABE Waters11"
+    # Patient information - encrypted data (dữ liệu đã mã hóa)
+    patient_id_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Mã số bệnh nhân đã mã hóa"
     )
-    aes_iv_for_content = models.BinaryField(
-        help_text="IV được sử dụng cho AES-GCM encryption"
+    patient_name_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Họ tên bệnh nhân đã mã hóa"
     )
-    encrypted_content_blob = models.BinaryField(
-        help_text="Nội dung file đã được mã hóa bằng AES-GCM"
+    patient_age_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Tuổi bệnh nhân đã mã hóa"
+    )
+    patient_gender_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Giới tính bệnh nhân đã mã hóa"
+    )
+    patient_phone_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Số điện thoại bệnh nhân đã mã hóa"
+    )
+
+    # AES key và IV cho thông tin bệnh nhân
+    patient_info_aes_key_blob = models.BinaryField(
+        help_text="AES key cho thông tin bệnh nhân, đã mã hóa bằng CP-ABE Waters11"
+    )
+    patient_info_aes_iv_blob = models.BinaryField( 
+        help_text="IV cho AES-GCM encryption thông tin bệnh nhân"
     )
     
-    # File metadata
-    filename = models.CharField(max_length=255, null=True, blank=True)
-    mime_type = models.CharField(max_length=100, null=True, blank=True)
-    file_size = models.PositiveIntegerField(null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
+    # Medical record - encrypted data (dữ liệu đã mã hóa)
+    chief_complaint_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Lý do khám đã mã hóa"
+    )
+    past_medical_history_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Tiền sử bệnh đã mã hóa"
+    )
+    diagnosis_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Chẩn đoán đã mã hóa"
+    )
+    status_blob = models.BinaryField(
+        null=True, blank=True,
+        help_text="Tình trạng hiện tại đã mã hóa"
+    )
     
+    # AES key và IV cho hồ sơ y tế
+    medical_record_aes_key_blob = models.BinaryField(
+        help_text="AES key cho hồ sơ y tế, đã mã hóa bằng CP-ABE Waters11"
+    )
+    medical_record_aes_iv_blob = models.BinaryField(
+        help_text="IV cho AES-GCM encryption hồ sơ y tế"
+    )
+
+    # Metadata không mã hóa
+    case_id = models.CharField(
+        max_length=100,
+        unique=True,
+        default=generate_case_id,  # SỬA: Dùng function thay vì lambda
+        help_text="Mã định danh hồ sơ bệnh án"
+    )
+    created_date = models.DateField(
+        auto_now_add=True,
+        help_text="Ngày tạo hồ sơ"
+    )
+
     # Timestamps
-    uploaded_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def can_user_access(self, user):
-        """Kiểm tra user có thể truy cập dữ liệu này không"""
-        from .abe_utils import evaluate_policy_for_user
-        
-        user_attributes = [
-            ua.attribute.name 
-            for ua in user.attributes_possessed.select_related('attribute')
-        ]
-        
-        return evaluate_policy_for_user(self.policy_template.policy_template, user_attributes)
+    def __str__(self):
+        if self.patient_id:
+            return f"Medical Data {self.case_id} - Patient {self.patient_id}"
+        return f"Medical Data {self.case_id}"
 
     class Meta:
-        verbose_name = "Dữ liệu được bảo vệ"
-        verbose_name_plural = "Dữ liệu được bảo vệ"
+        verbose_name = "Dữ liệu y tế"
+        verbose_name_plural = "Dữ liệu y tế"
+        ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['owner_user', 'uploaded_at']),
-            models.Index(fields=['policy_template']),
+            models.Index(fields=['owner_user', 'created_at']),
+            models.Index(fields=['case_id']),
         ]

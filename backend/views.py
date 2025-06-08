@@ -10,8 +10,8 @@ from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 from allauth.account.signals import user_logged_in
 from django.dispatch import receiver
-from .models import User, UserAttribute, ProtectedData
-from .abe_utils import generate_user_secret_key, get_public_parameters_for_client
+from .models import User, UserAttribute, MedicalData, AccessPolicy
+from .abe_utils import generate_user_secret_key, get_public_parameters_for_client, create_medical_data_record
 
 class HomeView(TemplateView):
     template_name = 'home.html'
@@ -20,14 +20,14 @@ class HomeView(TemplateView):
         context = super().get_context_data(**kwargs)
         if self.request.user.is_authenticated:
             context['user_attributes'] = UserAttribute.objects.filter(user=self.request.user)
-            context['user_data_count'] = ProtectedData.objects.filter(owner_user=self.request.user).count()
+            context['user_data_count'] = MedicalData.objects.filter(owner_user=self.request.user).count()
         return context
 
 @login_required
 def dashboard_view(request):
     """Dashboard cho user đã đăng nhập"""
     user_attributes = UserAttribute.objects.filter(user=request.user)
-    user_data = ProtectedData.objects.filter(owner_user=request.user)
+    user_data = MedicalData.objects.filter(owner_user=request.user)
     
     context = {
         'user_attributes': user_attributes,
@@ -179,4 +179,131 @@ def get_session_secret_key(request):
             'success': False,
             'error': str(e),
             'message': 'Error generating secret key'
+        }, status=500)
+
+# THÊM MỚI: View và API endpoints cho medical record upload
+
+@login_required
+def medical_upload_view(request):
+    """Trang upload medical record"""
+    return render(request, 'medical_upload.html')
+
+@login_required
+@require_http_methods(["GET"])
+def get_access_policies(request):
+    """
+    API endpoint để lấy danh sách access policies
+    """
+    try:
+        policies = AccessPolicy.objects.all().order_by('name')
+        policy_list = []
+        
+        for policy in policies:
+            policy_list.append({
+                'id': policy.id,
+                'name': policy.name,
+                'policy_template': policy.policy_template,
+                'description': policy.description
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'data': policy_list,
+            'count': len(policy_list),
+            'message': 'Access policies retrieved successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Error retrieving access policies'
+        }, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def upload_medical_record(request):
+    """
+    API endpoint để upload medical record đã mã hóa
+    """
+    try:
+        # Parse JSON data từ request
+        data = json.loads(request.body)
+        
+        # Validate required fields
+        required_fields = [
+            'patient_id',
+            'patient_info_aes_key_blob',
+            'patient_info_aes_iv_blob',
+            'medical_record_aes_key_blob', 
+            'medical_record_aes_iv_blob'
+        ]
+        
+        for field in required_fields:
+            if field not in data:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Missing required field: {field}',
+                    'message': 'Thiếu thông tin bắt buộc'
+                }, status=400)
+        
+        # Convert base64 strings to bytes
+        encrypted_data = {}
+        binary_fields = [
+            'patient_info_aes_key_blob', 'patient_info_aes_iv_blob',
+            'medical_record_aes_key_blob', 'medical_record_aes_iv_blob',
+            'patient_id_blob', 'patient_name_blob', 'patient_age_blob',
+            'patient_gender_blob', 'patient_phone_blob',
+            'chief_complaint_blob', 'past_medical_history_blob',
+            'diagnosis_blob', 'status_blob'
+        ]
+        
+        import base64
+        for field in binary_fields:
+            if field in data and data[field]:
+                try:
+                    encrypted_data[field] = base64.b64decode(data[field])
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'error': f'Invalid base64 data for field: {field}',
+                        'message': f'Dữ liệu mã hóa không hợp lệ: {field}'
+                    }, status=400)
+        
+        # Create medical record
+        medical_record = create_medical_data_record(
+            owner_user=request.user,
+            patient_id=data['patient_id'],
+            **encrypted_data
+        )
+        
+        if medical_record:
+            return JsonResponse({
+                'success': True,
+                'data': {
+                    'case_id': medical_record.case_id,
+                    'patient_id': medical_record.patient_id,
+                    'created_at': medical_record.created_at.isoformat()
+                },
+                'message': 'Medical record uploaded successfully'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to create medical record',
+                'message': 'Không thể tạo hồ sơ y tế'
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data',
+            'message': 'Dữ liệu JSON không hợp lệ'
+        }, status=400)
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e),
+            'message': 'Lỗi khi upload medical record'
         }, status=500)

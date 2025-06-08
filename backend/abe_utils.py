@@ -378,33 +378,123 @@ def _evaluate_with_parentheses(policy, user_attributes):
         return eval(result)
     except:
         return False
-
-# ==================== UTILITY FUNCTIONS ====================
-
-def get_user_accessible_data(user):
-    """Lấy danh sách dữ liệu mà user có thể truy cập"""
-    user_attributes = get_user_attributes_list(user)
-    accessible_data = []
     
-    for data in ProtectedData.objects.all():
-        if evaluate_policy_for_user(data.policy_template.policy_template, user_attributes):
-            accessible_data.append(data.id)
-    
-    return ProtectedData.objects.filter(id__in=accessible_data)
+# ==================== MEDICAL DATA FUNCTIONS ====================
 
-def create_protected_data_with_policy(owner, policy_template, filename=None, 
-                                    mime_type=None, file_size=None, description=None):
-    """Tạo ProtectedData object với static policy"""
+def get_all_medical_data():
+    """Lấy tất cả dữ liệu y tế - CP-ABE sẽ tự động kiểm tra quyền ở client"""
+    from .models import MedicalData
+    return MedicalData.objects.all().order_by('-created_at')
+
+def get_user_medical_data(user):
+    """Lấy dữ liệu y tế của user cụ thể"""
+    from .models import MedicalData
+    return MedicalData.objects.filter(owner_user=user).order_by('-created_at')
+
+def create_medical_data_record(owner_user, patient_id=None, **encrypted_data):
+    """
+    Tạo bản ghi MedicalData với dữ liệu đã mã hóa từ client
+    
+    Args:
+        owner_user: User object
+        patient_id: str - Patient ID không mã hóa để phân biệt hồ sơ
+        **encrypted_data: Dict chứa các field đã mã hóa
+        
+    Expected fields:
+        - patient_id_blob: bytes
+        - patient_name_blob: bytes  
+        - patient_age_blob: bytes
+        - patient_gender_blob: bytes
+        - patient_phone_blob: bytes
+        - patient_info_aes_key_blob: bytes
+        - patient_info_aes_iv_blob: bytes
+        - chief_complaint_blob: bytes
+        - past_medical_history_blob: bytes
+        - diagnosis_blob: bytes
+        - status_blob: bytes
+        - medical_record_aes_key_blob: bytes
+        - medical_record_aes_iv_blob: bytes
+    
+    Returns:
+        MedicalData object hoặc None nếu có lỗi
+    """
     try:
-        protected_data = ProtectedData(
-            owner_user=owner,
-            policy_template=policy_template,
-            filename=filename,
-            mime_type=mime_type,
-            file_size=file_size,
-            description=description
+        from .models import MedicalData
+        
+        medical_record = MedicalData(
+            owner_user=owner_user,
+            patient_id=patient_id,  # THÊM MỚI: Lưu patient_id không mã hóa
+            **encrypted_data
         )
-        return protected_data
+        
+        medical_record.save()
+        print(f"Medical data record created: {medical_record.case_id} for patient: {patient_id}")
+        return medical_record
+        
     except Exception as e:
-        print(f"Error creating protected data: {e}")
+        print(f"Error creating medical data record: {e}")
         return None
+
+def update_medical_data_record(medical_data_id, patient_id=None, **encrypted_data):
+    """
+    Cập nhật bản ghi MedicalData với dữ liệu đã mã hóa mới
+    
+    Args:
+        medical_data_id: ID của MedicalData record
+        patient_id: str - Patient ID không mã hóa để phân biệt hồ sơ
+        **encrypted_data: Dict chứa các field đã mã hóa cần update
+        
+    Returns:
+        MedicalData object đã update hoặc None nếu có lỗi
+    """
+    try:
+        from .models import MedicalData
+        
+        medical_record = MedicalData.objects.get(id=medical_data_id)
+        
+        # Update patient_id nếu được cung cấp
+        if patient_id is not None:
+            medical_record.patient_id = patient_id
+        
+        # Update các fields được provide
+        for field, value in encrypted_data.items():
+            if hasattr(medical_record, field):
+                setattr(medical_record, field, value)
+        
+        medical_record.save()
+        print(f"Medical data record updated: {medical_record.case_id} for patient: {medical_record.patient_id}")
+        return medical_record
+        
+    except MedicalData.DoesNotExist:
+        print(f"Medical data record with ID {medical_data_id} not found")
+        return None
+    except Exception as e:
+        print(f"Error updating medical data record: {e}")
+        return None
+
+def delete_medical_data_record(medical_data_id):
+    """
+    Xóa bản ghi MedicalData
+    
+    Args:
+        medical_data_id: ID của MedicalData record
+        
+    Returns:
+        bool: True nếu xóa thành công
+    """
+    try:
+        from .models import MedicalData
+        
+        medical_record = MedicalData.objects.get(id=medical_data_id)
+        case_id = medical_record.case_id
+        medical_record.delete()
+        
+        print(f"Medical data record deleted: {case_id}")
+        return True
+        
+    except MedicalData.DoesNotExist:
+        print(f"Medical data record with ID {medical_data_id} not found")
+        return False
+    except Exception as e:
+        print(f"Error deleting medical data record: {e}")
+        return False

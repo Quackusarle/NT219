@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
-from .models import User, Attribute, UserAttribute, AccessPolicy, ProtectedData
+from .models import User, Attribute, UserAttribute, MedicalData
 
 
 class UserAttributeInline(admin.TabularInline):
@@ -71,48 +71,54 @@ class UserAttributeAdmin(admin.ModelAdmin):
         return super().get_queryset(request).select_related('user', 'attribute')
 
 
-@admin.register(AccessPolicy)
-class AccessPolicyAdmin(admin.ModelAdmin):
-    list_display = ('name', 'policy_template', 'created_at', 'updated_at')
-    search_fields = ('name', 'policy_template', 'description')
-    list_filter = ('created_at', 'updated_at')
-    readonly_fields = ('created_at', 'updated_at')
+@admin.register(MedicalData)
+class MedicalDataAdmin(admin.ModelAdmin):
+    list_display = ('case_id', 'patient_id', 'owner_user', 'created_date', 'created_at')
+    list_filter = ('created_date', 'created_at')
+    search_fields = ('case_id', 'patient_id', 'owner_user__email', 'owner_user__first_name', 'owner_user__last_name')
+    readonly_fields = ('case_id', 'created_at', 'updated_at')
+    autocomplete_fields = ('owner_user',)
+    ordering = ('-created_at',)
     
     fieldsets = (
-        ('Basic Info', {
-            'fields': ('name', 'description')
+        ('Thông tin cơ bản', {
+            'fields': ('case_id', 'patient_id', 'owner_user', 'created_date')
         }),
-        ('Policy Configuration', {
-            'fields': ('policy_template',)
+        ('Thông tin bệnh nhân (đã mã hóa)', {
+            'fields': (
+                'patient_info_aes_key_blob',
+                'patient_info_aes_iv_blob',
+                'patient_id_blob',
+                'patient_name_blob',
+                'patient_age_blob',
+                'patient_gender_blob',
+                'patient_phone_blob'
+            ),
+            'classes': ('collapse',),
+            'description': 'Dữ liệu đã được mã hóa bằng AES và CP-ABE'
+        }),
+        ('Hồ sơ y tế (đã mã hóa)', {
+            'fields': (
+                'medical_record_aes_key_blob',
+                'medical_record_aes_iv_blob',
+                'chief_complaint_blob',
+                'past_medical_history_blob',
+                'diagnosis_blob',
+                'status_blob'
+            ),
+            'classes': ('collapse',),
+            'description': 'Dữ liệu đã được mã hóa bằng AES và CP-ABE'
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
-
-
-@admin.register(ProtectedData)
-class ProtectedDataAdmin(admin.ModelAdmin):
-    list_display = ('id', 'owner_user', 'policy_template', 'filename', 'mime_type', 'uploaded_at')
-    list_filter = ('policy_template', 'mime_type', 'uploaded_at')
-    search_fields = ('filename', 'description', 'owner_user__email')
-    readonly_fields = ('uploaded_at', 'updated_at')
-    autocomplete_fields = ('owner_user', 'policy_template')
     
-    fieldsets = (
-        ('Basic Info', {
-            'fields': ('owner_user', 'filename', 'description', 'mime_type', 'file_size')
-        }),
-        ('Policy & Access', {
-            'fields': ('policy_template',)
-        }),
-        ('Encrypted Data', {
-            'fields': ('abe_encrypted_aes_key_blob', 'aes_iv_for_content', 'encrypted_content_blob'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('uploaded_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
+    def has_change_permission(self, request, obj=None):
+        """Chỉ cho phép view, không cho edit dữ liệu đã mã hóa"""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Cho phép xóa nhưng cần xác nhận"""
+        return request.user.is_superuser
