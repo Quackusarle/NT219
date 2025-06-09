@@ -52,50 +52,14 @@
     margin-bottom: 1rem;
 }
 
-.loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.9);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-}
-
-.loading-content {
-    text-align: center;
-}
-
-.loading-spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #007bff;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 20px;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+#decrypt-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<!-- Loading Overlay -->
-<div id="loading-overlay" class="loading-overlay">
-    <div class="loading-content">
-        <div class="loading-spinner"></div>
-        <h4>Đang giải mã dữ liệu...</h4>
-        <p class="text-muted">Vui lòng đợi trong giây lát</p>
-    </div>
-</div>
-
 <div class="container mt-4">
     <!-- Header -->
     <div class="row mb-4">
@@ -136,28 +100,6 @@
                             <strong>Created Date:</strong><br>
                             {{ medical_record.created_date|date:"d/m/Y" }}
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error Display -->
-    <div id="error-display" class="row mb-4" style="display: none;">
-        <div class="col-12">
-            <div class="card border-danger">
-                <div class="card-header bg-danger text-white">
-                    <h5><i class="fas fa-exclamation-triangle"></i> Không thể giải mã</h5>
-                </div>
-                <div class="card-body">
-                    <div id="error-message" class="alert alert-danger"></div>
-                    <div class="d-flex gap-2">
-                        <button id="retry-btn" class="btn btn-outline-danger">
-                            <i class="fas fa-redo"></i> Thử lại
-                        </button>
-                        <button id="show-encrypted-btn" class="btn btn-outline-secondary">
-                            <i class="fas fa-eye"></i> Xem dữ liệu đã mã hóa
-                        </button>
                     </div>
                 </div>
             </div>
@@ -248,6 +190,33 @@
                                 <small class="text-muted">Size: {{ medical_record.medical_record_aes_key_blob|length }} bytes</small>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decryption Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-unlock-alt text-primary"></i> Giải mã dữ liệu</h5>
+                </div>
+                <div class="card-body">
+                    <div id="decryption-status" class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Nhấn nút bên dưới để thử giải mã dữ liệu với khóa bí mật của bạn.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button id="decrypt-btn" class="btn btn-primary" disabled>
+                            <i class="fas fa-unlock"></i> Thử giải mã
+                        </button>
+                        <button id="show-encrypted-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye"></i> Hiển thị dữ liệu đã mã hóa
+                        </button>
+                        <button id="retry-init-btn" class="btn btn-outline-warning" style="display: none;">
+                            <i class="fas fa-redo"></i> Thử lại khởi tạo
+                        </button>
                     </div>
                 </div>
             </div>
