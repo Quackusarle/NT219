@@ -119,7 +119,7 @@ async function initializePyodideAndCharm() {
     await pyodideInstance.loadPackage("micropip");
     const micropip = pyodideInstance.pyimport("micropip");
     
-    const charmWheelURL = "http://localhost:8080/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
+    const charmWheelURL = "https://quackusarle.github.io/charm_crypto_wheel_for_pyodide/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
     await micropip.install(charmWheelURL);
 
     // Get public key from session storage
