@@ -148,9 +148,7 @@ class AccessPolicy(models.Model):
 
 # ==================== MEDICAL DATA ====================
 
-def generate_case_id():
-    """Tạo mã định danh hồ sơ bệnh án"""
-    return f"CASE-{uuid.uuid4().hex[:8].upper()}"
+
 
 class MedicalData(models.Model):
     """Model lưu trữ dữ liệu y tế đã được mã hóa bằng AES và CP-ABE Waters11"""
@@ -170,10 +168,6 @@ class MedicalData(models.Model):
     )
     
     # Patient information - encrypted data (dữ liệu đã mã hóa)
-    patient_id_blob = models.BinaryField(
-        null=True, blank=True,
-        help_text="Mã số bệnh nhân đã mã hóa"
-    )
     patient_name_blob = models.BinaryField(
         null=True, blank=True,
         help_text="Họ tên bệnh nhân đã mã hóa"
@@ -226,12 +220,6 @@ class MedicalData(models.Model):
     )
 
     # Metadata không mã hóa
-    case_id = models.CharField(
-        max_length=100,
-        unique=True,
-        default=generate_case_id,  # SỬA: Dùng function thay vì lambda
-        help_text="Mã định danh hồ sơ bệnh án"
-    )
     created_date = models.DateField(
         auto_now_add=True,
         help_text="Ngày tạo hồ sơ"
@@ -243,8 +231,8 @@ class MedicalData(models.Model):
 
     def __str__(self):
         if self.patient_id:
-            return f"Medical Data {self.case_id} - Patient {self.patient_id}"
-        return f"Medical Data {self.case_id}"
+            return f"Medical Data ID:{self.id} - Patient {self.patient_id}"
+        return f"Medical Data ID:{self.id}"
 
     class Meta:
         verbose_name = "Dữ liệu y tế"
@@ -252,5 +240,5 @@ class MedicalData(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['owner_user', 'created_at']),
-            models.Index(fields=['case_id']),
+            models.Index(fields=['patient_id']),
         ]

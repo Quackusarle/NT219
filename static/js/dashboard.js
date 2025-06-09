@@ -319,7 +319,7 @@ function showNotification(message, type = 'info') {
 window.refreshKey = refreshKey;
 window.showPublicKey = showPublicKey;
 window.checkKeyStatus = checkKeyStatus;
-window.checkDecryptAccess = checkDecryptAccess;
+window.checkDecryptAccess = checkDecryptAccess; 
 
 // Helper function to get CSRF token
 function getCSRFToken() {

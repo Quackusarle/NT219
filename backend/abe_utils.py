@@ -33,7 +33,7 @@ def init_charm_settings():
     global _charm_group, _charm_waters11_scheme
     if _charm_group is None:
         _charm_group = PairingGroup('SS512')
-        _charm_waters11_scheme = Waters11(_charm_group, uni_size=1000, verbose=False)
+        _charm_waters11_scheme = Waters11(_charm_group, uni_size=11, verbose=False)
         print("Charm-Crypto Group and Waters11 Scheme Initialized.")
 
 def get_charm_group():
@@ -71,7 +71,7 @@ def convert_attributes_to_integers(attr_names):
     for attr_name in attr_names:
         if attr_name in name_to_int:
             attr_integers.append(name_to_int[attr_name])
-        else:
+    else:
             # Nếu attribute chưa có trong mapping, tạo mới
             from .models import Attribute
             attr_obj, created = Attribute.objects.get_or_create(name=attr_name)
@@ -257,7 +257,7 @@ def get_public_parameters_for_client():
     except Exception as e:
         print(f"Error getting public parameters for client: {e}")
         raise
-
+    
 # ==================== USER ATTRIBUTE FUNCTIONS ====================
 
 def get_user_attributes_list(user, as_integers=False):
@@ -414,7 +414,7 @@ def create_medical_data_record(owner_user, patient_id=None, **encrypted_data):
         - status_blob: bytes
         - medical_record_aes_key_blob: bytes
         - medical_record_aes_iv_blob: bytes
-    
+        
     Returns:
         MedicalData object hoặc None nếu có lỗi
     """
@@ -428,7 +428,7 @@ def create_medical_data_record(owner_user, patient_id=None, **encrypted_data):
         )
         
         medical_record.save()
-        print(f"Medical data record created: {medical_record.case_id} for patient: {patient_id}")
+        print(f"Medical data record created: ID {medical_record.id} for patient: {patient_id}")
         return medical_record
         
     except Exception as e:
@@ -462,7 +462,7 @@ def update_medical_data_record(medical_data_id, patient_id=None, **encrypted_dat
                 setattr(medical_record, field, value)
         
         medical_record.save()
-        print(f"Medical data record updated: {medical_record.case_id} for patient: {medical_record.patient_id}")
+        print(f"Medical data record updated: ID {medical_record.id} for patient: {medical_record.patient_id}")
         return medical_record
         
     except MedicalData.DoesNotExist:
@@ -486,10 +486,11 @@ def delete_medical_data_record(medical_data_id):
         from .models import MedicalData
         
         medical_record = MedicalData.objects.get(id=medical_data_id)
-        case_id = medical_record.case_id
+        record_id = medical_record.id
+        patient_id = medical_record.patient_id
         medical_record.delete()
         
-        print(f"Medical data record deleted: {case_id}")
+        print(f"Medical data record deleted: ID {record_id} - Patient {patient_id}")
         return True
         
     except MedicalData.DoesNotExist:

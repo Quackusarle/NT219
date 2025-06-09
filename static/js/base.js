@@ -247,7 +247,7 @@ function debugABESystem() {
         }
     }
     console.log('=== End Debug ===');
-}
+} 
 
 // Make functions globally available
 window.getSecretKey = getSecretKey;

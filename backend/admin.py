@@ -73,22 +73,21 @@ class UserAttributeAdmin(admin.ModelAdmin):
 
 @admin.register(MedicalData)
 class MedicalDataAdmin(admin.ModelAdmin):
-    list_display = ('case_id', 'patient_id', 'owner_user', 'created_date', 'created_at')
+    list_display = ('id', 'patient_id', 'owner_user', 'created_date', 'created_at')
     list_filter = ('created_date', 'created_at')
-    search_fields = ('case_id', 'patient_id', 'owner_user__email', 'owner_user__first_name', 'owner_user__last_name')
-    readonly_fields = ('case_id', 'created_at', 'updated_at')
+    search_fields = ('patient_id', 'owner_user__email', 'owner_user__first_name', 'owner_user__last_name')
+    readonly_fields = ('created_at', 'updated_at')
     autocomplete_fields = ('owner_user',)
     ordering = ('-created_at',)
     
     fieldsets = (
         ('Thông tin cơ bản', {
-            'fields': ('case_id', 'patient_id', 'owner_user', 'created_date')
+            'fields': ('patient_id', 'owner_user', 'created_date')
         }),
         ('Thông tin bệnh nhân (đã mã hóa)', {
             'fields': (
                 'patient_info_aes_key_blob',
                 'patient_info_aes_iv_blob',
-                'patient_id_blob',
                 'patient_name_blob',
                 'patient_age_blob',
                 'patient_gender_blob',

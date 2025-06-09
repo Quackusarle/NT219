@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Medical Record Details - CP-ABE Security System{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
+<style>
+.encrypted-field {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: #6c757d;
+    word-break: break-all;
+}
+
+.decrypted-field {
+    background-color: #e8f5e8;
+    border: 1px solid #c3e6c3;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    color: #155724;
+    min-height: 2.5rem;
+    white-space: pre-wrap;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    color: #6c757d;
+}
+
+.card {
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: none;
+}
+
+.card-header {
+    background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+}
+
+.alert {
+    margin-bottom: 1rem;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h4>Đang giải mã dữ liệu...</h4>
+        <p class="text-muted">Vui lòng đợi trong giây lát</p>
+    </div>
+</div>
+
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Medical Record Details</li>
+                </ol>
+            </nav>
+            <h2><i class="fas fa-file-medical text-primary"></i> Chi tiết Medical Record</h2>
+            <p class="text-muted">ID: {{ medical_record.patient_id }}</p>
+        </div>
+    </div>
+
+    <!-- Record Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-info-circle text-info"></i> Thông tin Record</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Patient ID:</strong><br>
+                            <span class="text-primary">{{ medical_record.patient_id }}</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Owner:</strong><br>
+                            {{ medical_record.owner_user.email }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Upload Time:</strong><br>
+                            {{ medical_record.created_at|date:"d/m/Y H:i:s" }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Created Date:</strong><br>
+                            {{ medical_record.created_date|date:"d/m/Y" }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Display -->
+    <div id="error-display" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Không thể giải mã</h5>
+                </div>
+                <div class="card-body">
+                    <div id="error-message" class="alert alert-danger"></div>
+                    <div class="d-flex gap-2">
+                        <button id="retry-btn" class="btn btn-outline-danger">
+                            <i class="fas fa-redo"></i> Thử lại
+                        </button>
+                        <button id="show-encrypted-btn" class="btn btn-outline-secondary">
+                            <i class="fas fa-eye"></i> Xem dữ liệu đã mã hóa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Encrypted Data Display -->
+    <div id="encrypted-data-section" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-database text-primary"></i> Dữ liệu đã mã hóa (Preview)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Lưu ý:</strong> Đây chỉ là preview dữ liệu đã mã hóa. Để xem nội dung thực tế, bạn cần có quyền giải mã phù hợp.
+                    </div>
+
+                    <!-- Patient Info Section -->
+                    <h6 class="mt-4">Patient Information (Encrypted)</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Name (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.patient_name_blob|truncatechars:50 }}...</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Age (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.patient_age_blob|truncatechars:50 }}...</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Gender (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.patient_gender_blob|truncatechars:50 }}...</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Phone (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.patient_phone_blob|truncatechars:50 }}...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medical Record Section -->
+                    <h6 class="mt-4">Medical Record (Encrypted)</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Chief Complaint (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.chief_complaint_blob|truncatechars:50 }}...</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Past Medical History (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.past_medical_history_blob|truncatechars:50 }}...</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Diagnosis (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.diagnosis_blob|truncatechars:50 }}...</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Status (Encrypted):</strong></label>
+                                <div class="encrypted-field">{{ medical_record.status_blob|truncatechars:50 }}...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Encryption Keys Section -->
+                    <h6 class="mt-4">CP-ABE Encrypted Keys</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Patient Info AES Key (CP-ABE Encrypted):</strong></label>
+                                <div class="encrypted-field" style="max-height: 100px; overflow-y: auto; font-size: 0.8rem;">
+                                    {{ medical_record.patient_info_aes_key_blob|truncatechars:200 }}...
+                                </div>
+                                <small class="text-muted">Size: {{ medical_record.patient_info_aes_key_blob|length }} bytes</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Medical Record AES Key (CP-ABE Encrypted):</strong></label>
+                                <div class="encrypted-field" style="max-height: 100px; overflow-y: auto; font-size: 0.8rem;">
+                                    {{ medical_record.medical_record_aes_key_blob|truncatechars:200 }}...
+                                </div>
+                                <small class="text-muted">Size: {{ medical_record.medical_record_aes_key_blob|length }} bytes</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Decrypted Data Display -->
+    <div id="decrypted-data-container" class="row mb-4" style="display: none;">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-check-circle text-success"></i> Dữ liệu đã giải mã</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Patient Info Section -->
+                    <h6 class="mt-4">Thông tin bệnh nhân:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Họ và tên:</strong></label>
+                                <div id="decrypted-patient-name" class="decrypted-field">-</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Tuổi:</strong></label>
+                                <div id="decrypted-patient-age" class="decrypted-field">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Giới tính:</strong></label>
+                                <div id="decrypted-patient-gender" class="decrypted-field">-</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Số điện thoại:</strong></label>
+                                <div id="decrypted-patient-phone" class="decrypted-field">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Medical Record Section -->
+                    <h6 class="mt-4">Hồ sơ y tế:</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Lý do khám:</strong></label>
+                                <div id="decrypted-chief-complaint" class="decrypted-field">-</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Tiền sử bệnh:</strong></label>
+                                <div id="decrypted-past-medical-history" class="decrypted-field">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Chẩn đoán:</strong></label>
+                                <div id="decrypted-diagnosis" class="decrypted-field">-</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><strong>Tình trạng hiện tại:</strong></label>
+                                <div id="decrypted-status" class="decrypted-field">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Include Pyodide for CP-ABE decryption -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+<script>
+    // Set global record ID for the JS module
+    window.recordId = {{ medical_record.id }};
+</script>
+<script src="{% static 'js/medical_record_detail.js' %}"></script>
+{% endblock %} 

@@ -25,15 +25,16 @@ class HomeView(TemplateView):
 
 @login_required
 def dashboard_view(request):
-    """Dashboard cho user đã đăng nhập"""
+    """Dashboard cho user đã đăng nhập - hiển thị toàn bộ dữ liệu"""
     user_attributes = UserAttribute.objects.filter(user=request.user)
-    user_data = MedicalData.objects.filter(owner_user=request.user)
+    # Query toàn bộ dữ liệu thay vì chỉ dữ liệu của user hiện tại
+    all_data = MedicalData.objects.all().order_by('-created_at')
     
     context = {
         'user_attributes': user_attributes,
-        'user_data': user_data,
+        'all_data': all_data,  # Đổi tên từ user_data thành all_data
         'total_attributes': user_attributes.count(),
-        'total_data_items': user_data.count(),
+        'total_data_items': all_data.count(),
     }
     
     return render(request, 'dashboard.html', context)
@@ -252,7 +253,7 @@ def upload_medical_record(request):
         binary_fields = [
             'patient_info_aes_key_blob', 'patient_info_aes_iv_blob',
             'medical_record_aes_key_blob', 'medical_record_aes_iv_blob',
-            'patient_id_blob', 'patient_name_blob', 'patient_age_blob',
+            'patient_name_blob', 'patient_age_blob',
             'patient_gender_blob', 'patient_phone_blob',
             'chief_complaint_blob', 'past_medical_history_blob',
             'diagnosis_blob', 'status_blob'
@@ -281,7 +282,7 @@ def upload_medical_record(request):
             return JsonResponse({
                 'success': True,
                 'data': {
-                    'case_id': medical_record.case_id,
+                    'id': medical_record.id,
                     'patient_id': medical_record.patient_id,
                     'created_at': medical_record.created_at.isoformat()
                 },
@@ -306,4 +307,76 @@ def upload_medical_record(request):
             'success': False,
             'error': str(e),
             'message': 'Lỗi khi upload medical record'
+        }, status=500)
+
+@login_required
+def medical_record_detail_view(request, record_id):
+    """View để hiển thị chi tiết một medical record"""
+    try:
+        medical_record = MedicalData.objects.get(id=record_id)
+        user_attributes = UserAttribute.objects.filter(user=request.user)
+        
+        context = {
+            'medical_record': medical_record,
+            'user_attributes': user_attributes,
+        }
+        
+        return render(request, 'medical_record_detail.html', context)
+        
+    except MedicalData.DoesNotExist:
+        messages.error(request, 'Medical record không tồn tại.')
+        return redirect('dashboard')
+
+@login_required
+@require_http_methods(["GET"])
+def get_encrypted_medical_record(request, record_id):
+    """API endpoint để lấy dữ liệu medical record đã mã hóa cho client-side decryption"""
+    try:
+        medical_record = MedicalData.objects.get(id=record_id)
+        
+        # Convert binary data to base64 for JSON transport
+        import base64
+        
+        response_data = {
+            'id': medical_record.id,
+            'patient_id': medical_record.patient_id,  # Unencrypted
+            'owner_user': medical_record.owner_user.email,
+            'created_at': medical_record.created_at.isoformat(),
+            'created_date': medical_record.created_date.isoformat(),
+            
+            # Patient info encrypted fields
+            'patient_name_blob': base64.b64encode(medical_record.patient_name_blob).decode('utf-8') if medical_record.patient_name_blob else None,
+            'patient_age_blob': base64.b64encode(medical_record.patient_age_blob).decode('utf-8') if medical_record.patient_age_blob else None,
+            'patient_gender_blob': base64.b64encode(medical_record.patient_gender_blob).decode('utf-8') if medical_record.patient_gender_blob else None,
+            'patient_phone_blob': base64.b64encode(medical_record.patient_phone_blob).decode('utf-8') if medical_record.patient_phone_blob else None,
+            
+            # Patient info AES key and IV (CP-ABE encrypted)
+            'patient_info_aes_key_blob': base64.b64encode(medical_record.patient_info_aes_key_blob).decode('utf-8'),
+            'patient_info_aes_iv_blob': base64.b64encode(medical_record.patient_info_aes_iv_blob).decode('utf-8'),
+            
+            # Medical record encrypted fields
+            'chief_complaint_blob': base64.b64encode(medical_record.chief_complaint_blob).decode('utf-8') if medical_record.chief_complaint_blob else None,
+            'past_medical_history_blob': base64.b64encode(medical_record.past_medical_history_blob).decode('utf-8') if medical_record.past_medical_history_blob else None,
+            'diagnosis_blob': base64.b64encode(medical_record.diagnosis_blob).decode('utf-8') if medical_record.diagnosis_blob else None,
+            'status_blob': base64.b64encode(medical_record.status_blob).decode('utf-8') if medical_record.status_blob else None,
+            
+            # Medical record AES key and IV (CP-ABE encrypted)
+            'medical_record_aes_key_blob': base64.b64encode(medical_record.medical_record_aes_key_blob).decode('utf-8'),
+            'medical_record_aes_iv_blob': base64.b64encode(medical_record.medical_record_aes_iv_blob).decode('utf-8'),
+        }
+        
+        return JsonResponse({
+            'success': True,
+            'data': response_data
+        })
+        
+    except MedicalData.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'message': 'Medical record không tồn tại.'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'Lỗi khi lấy dữ liệu: {str(e)}'
         }, status=500)

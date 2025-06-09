@@ -133,42 +133,48 @@
                     <span class="badge bg-info">{{ total_data_items }} files</span>
                 </div>
                 <div class="card-body">
-                    {% if user_data %}
+                    {% if all_data %}
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
                                         <th><i class="fas fa-file"></i> File</th>
+                                        <th><i class="fas fa-user"></i> Owner</th>
                                         <th><i class="fas fa-shield-alt"></i> Policy</th>
                                         <th><i class="fas fa-calendar"></i> Ngày tải</th>
                                         <th><i class="fas fa-cogs"></i> Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for data in user_data %}
+                                    {% for data in all_data %}
                                     <tr>
                                         <td>
                                             <i class="fas fa-file-alt text-muted me-2"></i>
-                                            <strong>{{ data.filename|default:"Untitled" }}</strong>
+                                            <strong>{{ data.patient_id|default:"Medical Record" }}</strong>
                                             {% if data.description %}
                                                 <br><small class="text-muted">{{ data.description }}</small>
                                             {% endif %}
                                         </td>
                                         <td>
+                                            <i class="fas fa-user text-muted me-1"></i>
+                                            {{ data.owner_user.email }}
+                                        </td>
+                                        <td>
                                             <span class="badge bg-secondary">
-                                                {{ data.policy.name }}
+                                                Encrypted Data
                                             </span>
-                                            <br><small class="text-muted">{{ data.policy.policy_definition }}</small>
+                                            <br>
+                                            <small class="text-muted">CP-ABE Waters11</small>
                                         </td>
                                         <td>
-                                            {{ data.uploaded_at|date:"d/m/Y H:i" }}
+                                            {{ data.created_at|date:"d/m/Y H:i" }}
                                         </td>
                                         <td>
-                                            <button class="btn btn-sm btn-outline-primary" 
-                                                    onclick="checkDecryptAccess({{ data.id }}, '{{ data.policy.policy_definition }}')"
-                                                    title="Kiểm tra quyền giải mã">
-                                                <i class="fas fa-unlock"></i>
-                                            </button>
+                                            <a href="{% url 'medical_record_detail' data.id %}" 
+                                               class="btn btn-sm btn-outline-primary"
+                                               title="Xem chi tiết">
+                                                <i class="fas fa-eye"></i> Xem
+                                            </a>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -179,7 +185,7 @@
                         <div class="text-center text-muted py-4">
                             <i class="fas fa-folder-open fa-3x mb-3"></i>
                             <h5>Chưa có dữ liệu nào</h5>
-                            <p>Bạn chưa upload và mã hóa file nào</p>
+                            <p>Chưa có medical record nào được upload</p>
                         </div>
                     {% endif %}
                 </div>
