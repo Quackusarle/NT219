@@ -12,6 +12,7 @@ from allauth.account.signals import user_logged_in
 from django.dispatch import receiver
 from .models import User, UserAttribute, MedicalData, AccessPolicy
 from .abe_utils import generate_user_secret_key, get_public_parameters_for_client, create_medical_data_record
+from .decorators import requires_attributes, api_requires_attributes, requires_doctor_role, api_requires_doctor_role
 
 class HomeView(TemplateView):
     template_name = 'home.html'
@@ -21,6 +22,8 @@ class HomeView(TemplateView):
         if self.request.user.is_authenticated:
             context['user_attributes'] = UserAttribute.objects.filter(user=self.request.user)
             context['user_data_count'] = MedicalData.objects.filter(owner_user=self.request.user).count()
+            # Thêm flag để check user có attributes hay không
+            context['has_attributes'] = UserAttribute.objects.filter(user=self.request.user).exists()
         return context
 
 @login_required
@@ -184,9 +187,9 @@ def get_session_secret_key(request):
 
 # THÊM MỚI: View và API endpoints cho medical record upload
 
-@login_required
+@requires_doctor_role()
 def medical_upload_view(request):
-    """Trang upload medical record"""
+    """Trang upload medical record - chỉ dành cho bác sĩ"""
     return render(request, 'medical_upload.html')
 
 @login_required
@@ -221,11 +224,11 @@ def get_access_policies(request):
             'message': 'Error retrieving access policies'
         }, status=500)
 
-@login_required
+@api_requires_doctor_role()
 @require_http_methods(["POST"])
 def upload_medical_record(request):
     """
-    API endpoint để upload medical record đã mã hóa
+    API endpoint để upload medical record đã mã hóa - chỉ dành cho bác sĩ
     """
     try:
         # Parse JSON data từ request
@@ -380,3 +383,4 @@ def get_encrypted_medical_record(request, record_id):
             'success': False,
             'message': f'Lỗi khi lấy dữ liệu: {str(e)}'
         }, status=500)
+        

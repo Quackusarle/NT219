@@ -43,33 +43,49 @@
                     </li>
                     
                     {% if user.is_authenticated %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'dashboard' %}">
-                                <i class="fas fa-tachometer-alt"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'medical_upload' %}">
-                                <i class="fas fa-upload"></i> Upload Medical
-                            </a>
-                        </li>
-                        <!-- 2FA Link with Icon -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'mfa_index' %}">
-                                <i class="fas fa-mobile-alt me-1"></i> 2FA
-                            </a>
-                        </li>
-                        <!-- End of 2FA Link -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user"></i> {{ user.email }}
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{% url 'account_logout' %}">Đăng xuất</a></li>
-                            </ul>
-                        </li>
+                        {% if has_attributes %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'dashboard' %}">
+                                    <i class="fas fa-tachometer-alt"></i> Dashboard
+                                </a>
+                            </li>
+                            {% if is_doctor %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'medical_upload' %}">
+                                        <i class="fas fa-upload"></i> Upload Medical
+                                    </a>
+                                </li>
+                            {% endif %}
+                            <!-- 2FA Link with Icon -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'mfa_index' %}">
+                                    <i class="fas fa-mobile-alt me-1"></i> 2FA
+                                </a>
+                            </li>
+                            <!-- End of 2FA Link -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                    <i class="fas fa-user"></i> {{ user.email }}
+                                </a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'profile' %}">Profile</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'account_logout' %}">Đăng xuất</a></li>
+                                </ul>
+                            </li>
+                        {% else %}
+                            <li class="nav-item">
+                                <span class="navbar-text text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i> 
+                                    {{ user.email }} (Chưa có quyền truy cập)
+                                </span>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'account_logout' %}">
+                                    <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                                </a>
+                            </li>
+                        {% endif %}
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'account_login' %}">

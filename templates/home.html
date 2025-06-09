@@ -14,9 +14,103 @@
             <h1>Trang chủ</h1>
             
             {% if user.is_authenticated %}
-                <p>Chào mừng {{ user.email }}!</p>
+                <div class="alert alert-info">
+                    <p><strong>Chào mừng {{ user.email }}!</strong></p>
+                </div>
+                
+                {% if has_attributes %}
+                    <div class="alert alert-success">
+                        <h4><i class="fas fa-check-circle"></i> Tài khoản đã được kích hoạt</h4>
+                        <p>Bạn đã được gán thuộc tính truy cập và có thể sử dụng đầy đủ các tính năng của hệ thống.</p>
+                        <a href="{% url 'dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-tachometer-alt"></i> Truy cập Dashboard
+                        </a>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-user-tag"></i> Thuộc tính của bạn
+                                    </h5>
+                                    <ul class="list-group list-group-flush">
+                                        {% for attr in user_attributes %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <span class="badge badge-primary">{{ attr.attribute.name }}</span>
+                                                    {% if attr.attribute.name == 'doctor' or attr.attribute.name == 'bac_si' or attr.attribute.name == 'bác sĩ' %}
+                                                        <span class="badge badge-success ms-1">
+                                                            <i class="fas fa-user-md"></i> Có quyền upload
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                                <small class="text-muted">{{ attr.attribute.description|default:"Không có mô tả" }}</small>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">
+                                        <i class="fas fa-chart-bar"></i> Thống kê & Quyền
+                                    </h5>
+                                    <p>Số lượng dữ liệu y tế: <strong>{{ user_data_count }}</strong></p>
+                                    <p>Số thuộc tính: <strong>{{ user_attributes.count }}</strong></p>
+                                    <hr>
+                                    {% if is_doctor %}
+                                        <div class="alert alert-success py-2">
+                                            <i class="fas fa-user-md"></i> 
+                                            <strong>Bác sĩ:</strong> Có quyền upload medical records
+                                        </div>
+                                        <a href="{% url 'medical_upload' %}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-upload"></i> Upload Medical Record
+                                        </a>
+                                    {% else %}
+                                        <div class="alert alert-info py-2">
+                                            <i class="fas fa-info-circle"></i> 
+                                            <strong>Lưu ý:</strong> Chỉ bác sĩ mới có quyền upload medical records
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h4><i class="fas fa-exclamation-triangle"></i> Tài khoản chưa được kích hoạt</h4>
+                        <p>Tài khoản của bạn chưa được gán thuộc tính truy cập. Vui lòng liên hệ quản trị viên để được cấp quyền truy cập vào hệ thống.</p>
+                        <p class="mb-0">
+                            <strong>Lưu ý:</strong> Bạn chỉ có thể xem trang chủ này cho đến khi được gán thuộc tính.
+                        </p>
+                    </div>
+                    
+                    <div class="card mt-4">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-info-circle"></i> Hướng dẫn
+                            </h5>
+                            <ol>
+                                <li>Liên hệ với quản trị viên hệ thống</li>
+                                <li>Yêu cầu được gán thuộc tính phù hợp với vai trò của bạn</li>
+                                <li>Sau khi được gán thuộc tính, bạn sẽ có thể truy cập dashboard và các tính năng khác</li>
+                            </ol>
+                            <p class="text-muted mb-0">
+                                <small>Hệ thống sử dụng mã hóa CP-ABE để đảm bảo chỉ những người có thuộc tính phù hợp mới có thể truy cập dữ liệu.</small>
+                            </p>
+                        </div>
+                    </div>
+                {% endif %}
             {% else %}
-                <p>Vui lòng đăng nhập để sử dụng hệ thống.</p>
+                <div class="alert alert-primary">
+                    <h4><i class="fas fa-sign-in-alt"></i> Chào mừng đến với hệ thống CP-ABE</h4>
+                    <p>Vui lòng đăng nhập để sử dụng hệ thống.</p>
+                    <a href="{% url 'account_login' %}" class="btn btn-primary">Đăng nhập</a>
+                    <a href="{% url 'account_signup' %}" class="btn btn-outline-primary">Đăng ký</a>
+                </div>
             {% endif %}
         </div>
     </div>
