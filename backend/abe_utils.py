@@ -287,20 +287,6 @@ def add_user_attribute(user, attribute_name):
 def evaluate_policy_for_user(policy_string, user_attributes):
     """
     Đánh giá xem user có thỏa mãn policy không
-    
-    Policy Syntax:
-    - AND: doctor AND nurse  
-    - OR: doctor OR nurse
-    - NOT: NOT doctor
-    - Parentheses: (doctor OR nurse) AND hospital_1
-    - Nested: doctor OR (nurse AND hospital_1)
-    
-    Args:
-        policy_string: str (ví dụ: 'doctor OR (hospital_1 AND nurse)')
-        user_attributes: list (danh sách attributes của user)
-        
-    Returns:
-        bool: True nếu user thỏa mãn policy
     """
     try:
         return _evaluate_policy_recursive(policy_string.strip(), user_attributes)
@@ -394,29 +380,6 @@ def get_user_medical_data(user):
 def create_medical_data_record(owner_user, patient_id=None, **encrypted_data):
     """
     Tạo bản ghi MedicalData với dữ liệu đã mã hóa từ client
-    
-    Args:
-        owner_user: User object
-        patient_id: str - Patient ID không mã hóa để phân biệt hồ sơ
-        **encrypted_data: Dict chứa các field đã mã hóa
-        
-    Expected fields:
-        - patient_id_blob: bytes
-        - patient_name_blob: bytes  
-        - patient_age_blob: bytes
-        - patient_gender_blob: bytes
-        - patient_phone_blob: bytes
-        - patient_info_aes_key_blob: bytes
-        - patient_info_aes_iv_blob: bytes
-        - chief_complaint_blob: bytes
-        - past_medical_history_blob: bytes
-        - diagnosis_blob: bytes
-        - status_blob: bytes
-        - medical_record_aes_key_blob: bytes
-        - medical_record_aes_iv_blob: bytes
-        
-    Returns:
-        MedicalData object hoặc None nếu có lỗi
     """
     try:
         from .models import MedicalData
@@ -438,14 +401,6 @@ def create_medical_data_record(owner_user, patient_id=None, **encrypted_data):
 def update_medical_data_record(medical_data_id, patient_id=None, **encrypted_data):
     """
     Cập nhật bản ghi MedicalData với dữ liệu đã mã hóa mới
-    
-    Args:
-        medical_data_id: ID của MedicalData record
-        patient_id: str - Patient ID không mã hóa để phân biệt hồ sơ
-        **encrypted_data: Dict chứa các field đã mã hóa cần update
-        
-    Returns:
-        MedicalData object đã update hoặc None nếu có lỗi
     """
     try:
         from .models import MedicalData
@@ -471,31 +426,3 @@ def update_medical_data_record(medical_data_id, patient_id=None, **encrypted_dat
     except Exception as e:
         print(f"Error updating medical data record: {e}")
         return None
-
-def delete_medical_data_record(medical_data_id):
-    """
-    Xóa bản ghi MedicalData
-    
-    Args:
-        medical_data_id: ID của MedicalData record
-        
-    Returns:
-        bool: True nếu xóa thành công
-    """
-    try:
-        from .models import MedicalData
-        
-        medical_record = MedicalData.objects.get(id=medical_data_id)
-        record_id = medical_record.id
-        patient_id = medical_record.patient_id
-        medical_record.delete()
-        
-        print(f"Medical data record deleted: ID {record_id} - Patient {patient_id}")
-        return True
-        
-    except MedicalData.DoesNotExist:
-        print(f"Medical data record with ID {medical_data_id} not found")
-        return False
-    except Exception as e:
-        print(f"Error deleting medical data record: {e}")
-        return False
