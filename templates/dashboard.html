@@ -19,7 +19,7 @@
 
     <!-- User Info Cards -->
     <div class="row mb-4">
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card info-card">
                 <div class="card-body text-center">
                     <i class="fas fa-user-circle fa-3x text-primary mb-3"></i>
@@ -30,24 +30,13 @@
             </div>
         </div>
         
-        <div class="col-md-4">
+        <div class="col-md-6">
             <div class="card info-card">
                 <div class="card-body text-center">
                     <i class="fas fa-tags fa-3x text-success mb-3"></i>
                     <h5>Thuộc tính</h5>
                     <p class="mb-1"><strong>{{ total_attributes }}</strong></p>
                     <small class="text-muted">Attributes được gán</small>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card info-card">
-                <div class="card-body text-center">
-                    <i class="fas fa-database fa-3x text-warning mb-3"></i>
-                    <h5>Dữ liệu</h5>
-                    <p class="mb-1"><strong>{{ total_data_items }}</strong></p>
-                    <small class="text-muted">Files đã mã hóa</small>
                 </div>
             </div>
         </div>
@@ -128,9 +117,8 @@
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="card-header">
                     <h5><i class="fas fa-folder text-warning"></i> Dữ liệu đã mã hóa</h5>
-                    <span class="badge bg-info">{{ total_data_items }} files</span>
                 </div>
                 <div class="card-body">
                     {% if all_data %}
@@ -140,7 +128,6 @@
                                     <tr>
                                         <th><i class="fas fa-file"></i> File</th>
                                         <th><i class="fas fa-user"></i> Owner</th>
-                                        <th><i class="fas fa-shield-alt"></i> Policy</th>
                                         <th><i class="fas fa-calendar"></i> Ngày tải</th>
                                         <th><i class="fas fa-cogs"></i> Thao tác</th>
                                     </tr>
@@ -158,13 +145,6 @@
                                         <td>
                                             <i class="fas fa-user text-muted me-1"></i>
                                             {{ data.owner_user.email }}
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-secondary">
-                                                Encrypted Data
-                                            </span>
-                                            <br>
-                                            <small class="text-muted">CP-ABE Waters11</small>
                                         </td>
                                         <td>
                                             {{ data.created_at|date:"d/m/Y H:i" }}

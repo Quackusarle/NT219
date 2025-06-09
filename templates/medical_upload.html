@@ -21,35 +21,6 @@
     .status-pending { background-color: #fff3cd; color: #856404; }
     .status-success { background-color: #d1edff; color: #0c5460; }
     .status-error { background-color: #f8d7da; color: #721c24; }
-    .log-area {
-        background-color: #212529;
-        color: #f8f9fa;
-        border: 1px solid #495057;
-        padding: 15px;
-        border-radius: 4px;
-        font-family: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
-        font-size: 0.875em;
-        height: 300px;
-        overflow-y: auto;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-    }
-    .log-entry {
-        display: flex;
-    }
-    .log-entry .timestamp {
-        color: #6c757d;
-        min-width: 90px;
-    }
-    .log-entry .message {
-        flex-grow: 1;
-    }
-    .log-entry.log-error .message {
-        color: #f8d7da;
-    }
-    .log-entry.log-success .message {
-        color: #d1e7dd;
-    }
     .policy-card {
         border: 1px solid #dee2e6;
         border-radius: 8px;
@@ -75,22 +46,6 @@
         <div class="col-12">
             <h1><i class="fas fa-upload text-primary"></i> Upload Medical Record</h1>
             <p class="text-muted">Tạo hồ sơ y tế mới với mã hóa AES-256-GCM và CP-ABE Waters11</p>
-        </div>
-    </div>
-
-    <!-- System Status -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-shield-alt text-success"></i> Trạng thái hệ thống</h5>
-                </div>
-                <div class="card-body">
-                    <div id="system-status" class="encryption-status status-pending">
-                        <i class="fas fa-spinner fa-spin"></i> Đang khởi tạo hệ thống mã hóa...
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -186,16 +141,11 @@
         </div>
     </div>
 
-    <!-- Log Output -->
-    <div class="row">
+    <!-- Status Messages -->
+    <div id="status-messages" class="row" style="display: none;">
         <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-terminal text-secondary"></i> Log chi tiết</h5>
-                </div>
-                <div class="card-body">
-                    <div id="log-area" class="log-area"></div>
-                </div>
+            <div id="status-alert" class="alert" role="alert">
+                <div id="status-content"></div>
             </div>
         </div>
     </div>

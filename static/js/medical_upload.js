@@ -7,38 +7,45 @@ let selectedMedicalPolicy = null;
 
 // --- DOM Elements ---
 const dom = {
-    systemStatus: document.getElementById('system-status'),
     uploadBtn: document.getElementById('upload-btn'),
-    logArea: document.getElementById('log-area'),
+    statusMessages: document.getElementById('status-messages'),
+    statusAlert: document.getElementById('status-alert'),
+    statusContent: document.getElementById('status-content'),
     patientPolicies: document.getElementById('patient-policies-container'),
     medicalPolicies: document.getElementById('medical-policies-container'),
     formInputs: document.querySelectorAll('input, select, textarea'),
 };
 
-// --- Logging Utility ---
-function logToPage(message, type = "info") {
-    if (!dom.logArea) return;
-    const timestamp = new Date().toLocaleTimeString();
-    const entry = document.createElement('div');
-    entry.className = `log-entry log-${type}`;
-    entry.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="message">${message}</span>`;
-    dom.logArea.appendChild(entry);
-    dom.logArea.scrollTop = dom.logArea.scrollHeight;
-
-    // Also log to console for better debugging
-    if (type === 'error') {
-        console.error(message);
-    } else {
-        console.log(message);
+// --- Status Display ---
+function showStatus(message, type = 'info') {
+    if (!dom.statusMessages || !dom.statusAlert || !dom.statusContent) return;
+    
+    const classes = {
+        'info': 'alert-info',
+        'success': 'alert-success',
+        'error': 'alert-danger',
+        'warning': 'alert-warning'
+    };
+    
+    const icons = {
+        'info': 'fas fa-info-circle',
+        'success': 'fas fa-check-circle',
+        'error': 'fas fa-exclamation-triangle',
+        'warning': 'fas fa-exclamation-triangle'
+    };
+    
+    dom.statusAlert.className = `alert ${classes[type]}`;
+    dom.statusContent.innerHTML = `<i class="${icons[type]}"></i> ${message}`;
+    dom.statusMessages.style.display = 'block';
+    
+    // Auto-hide success messages after 5 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            if (dom.statusMessages) {
+                dom.statusMessages.style.display = 'none';
+            }
+        }, 5000);
     }
-}
-
-// --- UI Updaters ---
-function updateSystemStatus(message, type = 'pending') {
-    const statusClasses = { 'pending': 'status-pending', 'success': 'status-success', 'error': 'status-error' };
-    const icons = { 'pending': 'fas fa-spinner fa-spin', 'success': 'fas fa-check-circle', 'error': 'fas fa-exclamation-triangle' };
-    dom.systemStatus.className = `encryption-status ${statusClasses[type]}`;
-    dom.systemStatus.innerHTML = `<i class="${icons[type]}"></i> ${message}`;
 }
 
 function setFormDisabled(isDisabled) {
@@ -92,74 +99,52 @@ function getCSRFToken() {
 
 // --- Core Initialization ---
 async function initializeSystem() {
-    logToPage("Initializing medical record upload system...");
     try {
         await initializePyodideAndCharm();
         await loadAccessPolicies();
         isSystemReady = true;
-        logToPage("System initialization complete!", "success");
         checkFormCompletion();
     } catch (error) {
         const errorMessage = error.message || error.toString();
-        logToPage(`Fatal initialization error: ${errorMessage}`, "error");
-        updateSystemStatus("Lỗi khởi tạo hệ thống", "error");
+        showStatus(`Lỗi khởi tạo hệ thống: ${errorMessage}`, "error");
     }
 }
 
 async function initializePyodideAndCharm() {
-    logToPage("Loading Pyodide...");
-    updateSystemStatus("Đang tải Pyodide...");
     pyodideInstance = await loadPyodide({
-        stdout: (text) => logToPage(`[Pyodide] ${text}`),
-        stderr: (text) => logToPage(`[Pyodide ERROR] ${text}`, "error"),
+        stdout: (text) => console.log(`[Pyodide] ${text}`),
+        stderr: (text) => console.error(`[Pyodide ERROR] ${text}`),
     });
 
-    logToPage("Loading micropip...");
     await pyodideInstance.loadPackage("micropip");
     const micropip = pyodideInstance.pyimport("micropip");
     
     const charmWheelURL = "http://localhost:8080/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
-    logToPage(`Installing Charm-Crypto from local wheel...`);
     await micropip.install(charmWheelURL);
-    logToPage("Charm-Crypto installed successfully!");
 
-    logToPage('Loading public key from session storage...');
-    updateSystemStatus("Đang tải public key từ session storage...");
-    
     // Get public key from session storage
     const publicKeyDataStr = sessionStorage.getItem('abe_public_key');
     if (!publicKeyDataStr) {
-        throw new Error('Public key not found in session storage. Please ensure you have initialized the system.');
+        throw new Error('Không tìm thấy public key. Vui lòng đăng nhập lại.');
     }
     
     const publicKeyData = JSON.parse(publicKeyDataStr);
-    logToPage('Public key loaded from session storage successfully');
-    logToPage(`Session storage key structure: ${JSON.stringify(Object.keys(publicKeyData))}`);
 
-    logToPage('Setting up Waters11 CP-ABE system with public key from session storage...');
     await pyodideInstance.runPythonAsync(`
 from charm.toolbox.pairinggroup import PairingGroup
 from charm.schemes.abenc.waters11 import Waters11
 import base64
 
-# Initialize ABE system
 group = PairingGroup('SS512')
 waters_abe = Waters11(group, uni_size=11)
 
-# Verify the uni_size setting
-print(f"--> Waters11 initialized with uni_size: {waters_abe.uni_size}")
-
-# Store objects for encryption
 globals()['_waters11_abe_scheme'] = waters_abe
 globals()['_waters11_group'] = group
-
-print("--> Waters11 system ready for encryption.")
     `);
 
     const testResult = await pyodideInstance.runPythonAsync(`
 result = "SUCCESS"
 try:
-    # Check for the encryption objects
     _waters11_abe_scheme
     _waters11_group
 except NameError as e:
@@ -170,24 +155,19 @@ result
     `);
 
     if (testResult !== 'SUCCESS') {
-        throw new Error(`Waters11 initialization test failed: ${testResult}`);
+        throw new Error(`Lỗi khởi tạo Waters11: ${testResult}`);
     }
     
-    // Store public key data for use in encryption
     window.serverPublicKey = publicKeyData;
-    updateSystemStatus("Hệ thống mã hóa sẵn sàng", "success");
-    logToPage("Waters11 CP-ABE system ready for encryption!");
 }
 
 // --- Policy Handling ---
 async function loadAccessPolicies() {
-    logToPage("Loading access policies from server...");
     const response = await fetch('/api/access-policies/', { headers: { 'X-CSRFToken': getCSRFToken() } });
-    if (!response.ok) throw new Error(`Failed to fetch policies: ${response.statusText}`);
+    if (!response.ok) throw new Error(`Lỗi tải chính sách: ${response.statusText}`);
     const result = await response.json();
-    if (!result.success) throw new Error(`API Error: ${result.message}`);
+    if (!result.success) throw new Error(`Lỗi API: ${result.message}`);
     accessPolicies = result.data;
-    logToPage(`Loaded ${accessPolicies.length} access policies.`);
     renderPolicyOptions();
 }
 
@@ -208,7 +188,6 @@ function renderPolicyOptions() {
     };
     render(dom.patientPolicies);
     render(dom.medicalPolicies);
-    logToPage("Policy options rendered with multi-select capability.");
 
     dom.patientPolicies.addEventListener('change', (e) => handlePolicySelection(e, 'patient'));
     dom.medicalPolicies.addEventListener('change', (e) => handlePolicySelection(e, 'medical'));
@@ -243,7 +222,6 @@ function handlePolicySelection(event, type) {
     });
     
     const policyNames = selectedPolicies.map(p => p.name).join(', ');
-    logToPage(`Selected ${type} policies: [${policyNames}]`);
     checkFormCompletion();
 }
 
@@ -258,8 +236,6 @@ function checkFormCompletion() {
 
 // --- Encryption Core ---
 async function encryptAESKeyWithCPABE(aesKeyHex, policy) {
-    logToPage(`Encrypting AES key with CP-ABE for policy: ${policy}`);
-    
     // Get public key data from session storage
     // Check if the public key data has the expected structure
     if (!window.serverPublicKey) {
@@ -276,8 +252,6 @@ async function encryptAESKeyWithCPABE(aesKeyHex, policy) {
         // Assume the entire object is the public key data
         pkData = window.serverPublicKey;
     }
-    
-    logToPage(`Public key structure: ${JSON.stringify(Object.keys(pkData))}`);
     
     if (!pkData || typeof pkData !== 'object') {
         throw new Error('Invalid public key data structure');
@@ -299,9 +273,6 @@ async function encryptAESKeyWithCPABE(aesKeyHex, policy) {
         const regex = new RegExp(`\\b${attrName}\\b`, 'gi');
         convertedPolicy = convertedPolicy.replace(regex, attrInt.toString());
     }
-    
-    logToPage(`Original policy: ${policy}`);
-    logToPage(`Converted policy: ${convertedPolicy}`);
     
     let result = await pyodideInstance.runPythonAsync(`
 from charm.toolbox.pairinggroup import GT
@@ -455,26 +426,18 @@ except Exception as e:
 json.dumps(result)
     `);
     
-    // Debug: log what we received from Python
-    logToPage(`JavaScript received result: ${typeof result}`);
-    logToPage(`Result is null/undefined: ${result == null}`);
-    
     // Parse JSON string from Python
     let parsedResult;
     try {
         parsedResult = JSON.parse(result);
-        logToPage(`Parsed result keys: ${Object.keys(parsedResult)}`);
-        logToPage(`Has abe_ciphertext: ${!!parsedResult.abe_ciphertext}`);
-        logToPage(`Has web_crypto_aes_key_base64: ${!!parsedResult.web_crypto_aes_key_base64}`);
     } catch (e) {
-        logToPage(`Failed to parse result as JSON: ${e.message}`, "error");
-        throw new Error("Invalid result format from Python");
+        throw new Error("Lỗi định dạng kết quả từ Python");
     }
     
     result = parsedResult;
     
     if (!result || !result.abe_ciphertext || !result.web_crypto_aes_key_base64) {
-        throw new Error("CP-ABE encryption failed in Python. Check logs for details.");
+        throw new Error("Lỗi mã hóa CP-ABE.");
     }
     
     // Return both ABE ciphertext and derived key
@@ -486,12 +449,11 @@ json.dumps(result)
 
 // --- Main Upload Process ---
 async function handleUpload() {
-    logToPage("--- Starting medical record upload process ---", "success");
     setFormDisabled(true);
+    showStatus("Đang bắt đầu quá trình mã hóa và upload...", "info");
 
     try {
         // 1. Generate random AES keys for patient info and medical records
-        logToPage("Generating AES keys for patient info and medical records...");
         const patientAesKey = await generateAesKey();
         const medicalAesKey = await generateAesKey();
 
@@ -500,7 +462,6 @@ async function handleUpload() {
         const medicalRecordIV = crypto.getRandomValues(new Uint8Array(12));
 
         // 3. Export AES keys for CP-ABE encryption
-        logToPage("Exporting AES keys for CP-ABE encryption...");
         const patientKeyHex = arrayBufferToHexString(await crypto.subtle.exportKey("raw", patientAesKey));
         const medicalKeyHex = arrayBufferToHexString(await crypto.subtle.exportKey("raw", medicalAesKey));
         
@@ -513,11 +474,8 @@ async function handleUpload() {
             ? selectedMedicalPolicy[0].policy_template  
             : `(${selectedMedicalPolicy.map(p => `(${p.policy_template})`).join(' OR ')})`;
         
-        logToPage(`Combined patient policy: ${patientPolicyString}`);
-        logToPage(`Combined medical policy: ${medicalPolicyString}`);
-        
         // 5. Encrypt AES keys with CP-ABE and get derived keys for data encryption
-        logToPage("Encrypting AES keys with CP-ABE and deriving keys for data encryption...");
+        showStatus("Đang mã hóa AES keys với CP-ABE...", "info");
         const patientAbeResult = await encryptAESKeyWithCPABE(patientKeyHex, patientPolicyString);
         const medicalAbeResult = await encryptAESKeyWithCPABE(medicalKeyHex, medicalPolicyString);
 
@@ -527,15 +485,12 @@ async function handleUpload() {
         const encryptedMedicalKeyABE = medicalAbeResult.abe_ciphertext;
         const webCryptoMedicalAesKeyBase64 = medicalAbeResult.web_crypto_aes_key_base64;
 
-        logToPage("CP-ABE encryption of AES keys complete.");
-
         // 6. Import derived keys for Web Crypto data encryption
-        logToPage("Importing derived keys for Web Crypto data encryption...");
         const webCryptoPatientAesKeyForData = await crypto.subtle.importKey(
             "raw",
             base64ToArrayBuffer(webCryptoPatientAesKeyBase64),
             { name: "AES-GCM" },
-            false, // not exportable
+            false,
             ["encrypt"]
         );
         const webCryptoMedicalAesKeyForData = await crypto.subtle.importKey(
@@ -547,23 +502,22 @@ async function handleUpload() {
         );
 
         // 7. Encrypt patient info fields with derived patient AES key
-        logToPage("Encrypting patient info fields with derived AES-GCM key...");
+        showStatus("Đang mã hóa dữ liệu bệnh nhân...", "info");
         const patientNameBlob = await aesEncryptField(dom.formInputs[1].value.trim(), webCryptoPatientAesKeyForData, patientInfoIV);
         const patientAgeBlob = await aesEncryptField(dom.formInputs[2].value.trim(), webCryptoPatientAesKeyForData, patientInfoIV);
         const patientGenderBlob = await aesEncryptField(dom.formInputs[3].value.trim(), webCryptoPatientAesKeyForData, patientInfoIV);
         const patientPhoneBlob = await aesEncryptField(dom.formInputs[4].value.trim(), webCryptoPatientAesKeyForData, patientInfoIV);
         
         // 8. Encrypt medical record fields with derived medical AES key
-        logToPage("Encrypting medical record fields with derived AES-GCM key...");
+        showStatus("Đang mã hóa dữ liệu y tế...", "info");
         const chiefComplaintBlob = await aesEncryptField(dom.formInputs[5].value.trim(), webCryptoMedicalAesKeyForData, medicalRecordIV);
         const pastMedicalHistoryBlob = await aesEncryptField(dom.formInputs[6].value.trim(), webCryptoMedicalAesKeyForData, medicalRecordIV);
         const diagnosisBlob = await aesEncryptField(dom.formInputs[7].value.trim(), webCryptoMedicalAesKeyForData, medicalRecordIV);
         const statusBlob = await aesEncryptField(dom.formInputs[8].value.trim(), webCryptoMedicalAesKeyForData, medicalRecordIV);
-        logToPage("AES encryption of individual fields complete.");
 
         // 9. Prepare final payload for the server
         const payload = {
-            patient_id: dom.formInputs[0].value.trim(), // Unencrypted for easy search/management
+            patient_id: dom.formInputs[0].value.trim(),
             
             // Individual patient info fields (encrypted with derived patient AES key)
             patient_name_blob: patientNameBlob,
@@ -586,12 +540,8 @@ async function handleUpload() {
             medical_record_aes_iv_blob: btoa(String.fromCharCode.apply(null, medicalRecordIV)),
         };
         
-        // Log the payload structure for debugging
-        logToPage(`Payload structure: ${JSON.stringify(Object.keys(payload))}`);
-        logToPage(`Patient ID: ${payload.patient_id}`);
-        
         // 10. Send data to the server
-        logToPage("Uploading encrypted data to the server...");
+        showStatus("Đang upload dữ liệu lên server...", "info");
         const response = await fetch('/api/upload-medical-record/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
@@ -600,19 +550,18 @@ async function handleUpload() {
 
         const result = await response.json();
         if (!response.ok || !result.success) {
-            throw new Error(result.message || `Server returned status ${response.status}`);
+            throw new Error(result.message || `Server trả về lỗi ${response.status}`);
         }
 
-        logToPage(`Upload successful! Record ID: ${result.data.id}`, "success");
-        alert('Medical record uploaded successfully!');
-        if (confirm('Do you want to create another record?')) {
+        showStatus(`Upload thành công! ID hồ sơ: ${result.data.id}`, "success");
+        
+        if (confirm('Hồ sơ y tế đã được upload thành công! Bạn có muốn tạo hồ sơ mới?')) {
             window.location.reload();
         }
 
     } catch (error) {
         const errorMessage = error.message || error.toString();
-        logToPage(`Upload failed: ${errorMessage}`, "error");
-        alert(`An error occurred during upload. Please check the logs for details.`);
+        showStatus(`Lỗi upload: ${errorMessage}`, "error");
     } finally {
         setFormDisabled(false);
         checkFormCompletion();

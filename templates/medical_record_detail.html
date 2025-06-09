@@ -6,16 +6,7 @@
 {% block extra_css %}
 <link href="{% static 'css/dashboard.css' %}" rel="stylesheet">
 <style>
-.encrypted-field {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 0.375rem;
-    padding: 0.5rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.875rem;
-    color: #6c757d;
-    word-break: break-all;
-}
+
 
 .decrypted-field {
     background-color: #e8f5e8;
@@ -52,14 +43,54 @@
     margin-bottom: 1rem;
 }
 
-#decrypt-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 2rem;
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.spinner {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <h5>Đang giải mã dữ liệu...</h5>
+        <p class="text-muted mb-0">Vui lòng đợi trong giây lát</p>
+    </div>
+</div>
+
 <div class="container mt-4">
     <!-- Header -->
     <div class="row mb-4">
@@ -106,122 +137,28 @@
         </div>
     </div>
 
-    <!-- Encrypted Data Display -->
-    <div id="encrypted-data-section" class="row mb-4" style="display: none;">
+    <!-- Decryption Status -->
+    <div id="decryption-result" class="row mb-4" style="display: none;">
         <div class="col-12">
-            <div class="card">
+            <div id="status-card" class="card">
                 <div class="card-header">
-                    <h5><i class="fas fa-database text-primary"></i> Dữ liệu đã mã hóa (Preview)</h5>
+                    <h5 id="status-title"><i class="fas fa-info-circle"></i> Kết quả giải mã</h5>
                 </div>
                 <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Lưu ý:</strong> Đây chỉ là preview dữ liệu đã mã hóa. Để xem nội dung thực tế, bạn cần có quyền giải mã phù hợp.
-                    </div>
-
-                    <!-- Patient Info Section -->
-                    <h6 class="mt-4">Patient Information (Encrypted)</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Name (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.patient_name_blob|truncatechars:50 }}...</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Age (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.patient_age_blob|truncatechars:50 }}...</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Gender (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.patient_gender_blob|truncatechars:50 }}...</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Phone (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.patient_phone_blob|truncatechars:50 }}...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Medical Record Section -->
-                    <h6 class="mt-4">Medical Record (Encrypted)</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Chief Complaint (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.chief_complaint_blob|truncatechars:50 }}...</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Past Medical History (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.past_medical_history_blob|truncatechars:50 }}...</div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Diagnosis (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.diagnosis_blob|truncatechars:50 }}...</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Status (Encrypted):</strong></label>
-                                <div class="encrypted-field">{{ medical_record.status_blob|truncatechars:50 }}...</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Encryption Keys Section -->
-                    <h6 class="mt-4">CP-ABE Encrypted Keys</h6>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Patient Info AES Key (CP-ABE Encrypted):</strong></label>
-                                <div class="encrypted-field" style="max-height: 100px; overflow-y: auto; font-size: 0.8rem;">
-                                    {{ medical_record.patient_info_aes_key_blob|truncatechars:200 }}...
-                                </div>
-                                <small class="text-muted">Size: {{ medical_record.patient_info_aes_key_blob|length }} bytes</small>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label"><strong>Medical Record AES Key (CP-ABE Encrypted):</strong></label>
-                                <div class="encrypted-field" style="max-height: 100px; overflow-y: auto; font-size: 0.8rem;">
-                                    {{ medical_record.medical_record_aes_key_blob|truncatechars:200 }}...
-                                </div>
-                                <small class="text-muted">Size: {{ medical_record.medical_record_aes_key_blob|length }} bytes</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Decryption Controls -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5><i class="fas fa-unlock-alt text-primary"></i> Giải mã dữ liệu</h5>
-                </div>
-                <div class="card-body">
-                    <div id="decryption-status" class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> Nhấn nút bên dưới để thử giải mã dữ liệu với khóa bí mật của bạn.
+                    <div id="status-message" class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Đang xử lý...
                     </div>
                     <div class="d-flex gap-2">
-                        <button id="decrypt-btn" class="btn btn-primary" disabled>
-                            <i class="fas fa-unlock"></i> Thử giải mã
-                        </button>
-                        <button id="show-encrypted-btn" class="btn btn-outline-secondary">
-                            <i class="fas fa-eye"></i> Hiển thị dữ liệu đã mã hóa
-                        </button>
-                        <button id="retry-init-btn" class="btn btn-outline-warning" style="display: none;">
-                            <i class="fas fa-redo"></i> Thử lại khởi tạo
+                        <button id="retry-decrypt-btn" class="btn btn-outline-primary" style="display: none;">
+                            <i class="fas fa-redo"></i> Thử lại giải mã
                         </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+
 
     <!-- Decrypted Data Display -->
     <div id="decrypted-data-container" class="row mb-4" style="display: none;">
