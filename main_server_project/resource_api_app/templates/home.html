@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Chủ - Hệ Thống EHR</title>
+    {% load static %} <!-- Nếu bạn có file CSS riêng cho app này -->
+    <!-- <link rel="stylesheet" href="{% static 'resource_api_app/style.css' %}"> -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f8;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 95vh;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 100%;
+            max-width: 700px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+        .subtitle {
+            color: #555;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .actions button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.05em;
+            font-weight: 500;
+            transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .actions button:hover {
+            background-color: #0056b3;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        .actions button:active {
+            transform: translateY(0);
+        }
+        .actions button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .actions button.secondary { background-color: #28a745; }
+        .actions button.secondary:hover { background-color: #1e7e34; }
+        .actions button.tertiary { background-color: #ffc107; color: #212529;}
+        .actions button.tertiary:hover { background-color: #e0a800; }
+
+        .status-message {
+            margin-top: 25px; padding: 12px; border-radius: 6px;
+            font-size: 0.95em; display: none;
+            border: 1px solid transparent;
+        }
+        .status-message.success { background-color: #d1e7dd; color: #0f5132; border-color: #badbcc; }
+        .status-message.error { background-color: #f8d7da; color: #842029; border-color: #f5c2c7; }
+        .status-message.info { background-color: #cff4fc; color: #055160; border-color: #b6effb; }
+
+        .user-info { margin-bottom: 25px; font-size: 1em; color: #6c757d; padding: 10px; background-color: #e9ecef; border-radius: 5px;}
+        .user-info strong { color: #343a40; }
+        .user-info a { color: #007bff; text-decoration: none; }
+        .user-info a:hover { text-decoration: underline; }
+
+        .logout-button { background-color: #dc3545; margin-top: 15px; }
+        .logout-button:hover { background-color: #bd2130; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hệ Thống Quản Lý EHR</h1>
+        <p class="subtitle">Quản lý và bảo vệ hồ sơ sức khỏe điện tử của bạn.</p>
+
+        <div id="userInfo" class="user-info">Đang kiểm tra trạng thái đăng nhập...</div>
+
+        <div class="actions">
+            <button id="getPublicKeyButton">1. Tải Public Key Hệ Thống</button>
+            <button id="getSecretKeyButton" class="secondary">2. Tải Secret Key Cá Nhân</button>
+            <button id="goToUploadButton" class="tertiary">3. Upload Tài Liệu Mới</button>
+            <button id="goToDecryptButton" class="tertiary">4. Giải Mã Tài Liệu</button>
+        </div>
+        <button id="logoutButton" class="logout-button actions button" style="display:none;">Đăng Xuất</button>
+
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+
+    <script>
+        const getPublicKeyButton = document.getElementById('getPublicKeyButton');
+        const getSecretKeyButton = document.getElementById('getSecretKeyButton');
+        const goToUploadButton = document.getElementById('goToUploadButton');
+        const goToDecryptButton = document.getElementById('goToDecryptButton');
+        const statusMessageEl = document.getElementById('statusMessage');
+        const userInfoDiv = document.getElementById('userInfo');
+        const logoutButton = document.getElementById('logoutButton');
+
+        // URL của Auth Center APIs (lấy từ Django template context)
+        const AUTH_CENTER_PUBLIC_KEY_API_URL = "{{ auth_center_public_key_api_url }}";
+        const AUTH_CENTER_SECRET_KEY_API_URL = "{{ auth_center_secret_key_api_url }}";
+        const AUTH_CENTER_LOGOUT_API_URL = "{{ auth_center_logout_api_url }}"; // Ví dụ: http://localhost:8000/api/auth/logout/
+
+        // URL của các trang trên Main Server (lấy từ Django template context)
+        const MAIN_SERVER_UPLOAD_PAGE_URL = "{{ main_server_upload_page_url }}";
+        const MAIN_SERVER_DECRYPT_PAGE_URL = "{{ main_server_decrypt_page_url }}";
+        const MAIN_SERVER_LOGIN_PAGE_URL = "{{ main_server_login_page_url }}";
+
+        function displayStatus(message, type = 'info') {
+            statusMessageEl.textContent = message;
+            statusMessageEl.className = `status-message ${type}`;
+            statusMessageEl.style.display = 'block';
+            setTimeout(() => { statusMessageEl.style.display = 'none'; }, 7000);
+        }
+
+        function checkLoginStatus() {
+            const accessToken = localStorage.getItem('mainServer_accessToken');
+            const userStr = localStorage.getItem('mainServer_user');
+
+            if (accessToken) {
+                getSecretKeyButton.disabled = false;
+                goToUploadButton.disabled = false; // Cho phép upload nếu đã đăng nhập
+                goToDecryptButton.disabled = false; // Cho phép decrypt nếu đã đăng nhập
+                logoutButton.style.display = 'block';
+                let userDisplay = 'Đã đăng nhập.';
+                if (userStr) {
+                    try {
+                        const user = JSON.parse(userStr);
+                        userDisplay = `Đã đăng nhập với: <strong>${user.email || user.username || 'Người dùng'}</strong>`;
+                    } catch (e) { /* Bỏ qua lỗi parse */ }
+                }
+                userInfoDiv.innerHTML = userDisplay;
+            } else {
+                userInfoDiv.innerHTML = 'Bạn chưa đăng nhập. <a href="' + MAIN_SERVER_LOGIN_PAGE_URL + '">Đăng nhập tại đây</a> để sử dụng đầy đủ chức năng.';
+                getSecretKeyButton.disabled = true;
+                goToUploadButton.disabled = true; // Không cho upload nếu chưa đăng nhập
+                goToDecryptButton.disabled = true; // Không cho decrypt nếu chưa đăng nhập
+                logoutButton.style.display = 'none';
+            }
+        }
+
+        getPublicKeyButton.addEventListener('click', () => {
+            displayStatus('Đang chuẩn bị tải Public Key...', 'info');
+            // Trình duyệt sẽ tự động xử lý việc tải file do header Content-Disposition từ server
+            window.location.href = AUTH_CENTER_PUBLIC_KEY_API_URL;
+            // Không thể chắc chắn hiển thị success message vì trang có thể điều hướng ngay
+        });
+
+        getSecretKeyButton.addEventListener('click', async () => {
+            const accessToken = localStorage.getItem('mainServer_accessToken');
+            if (!accessToken) {
+                displayStatus('Vui lòng đăng nhập để tải Secret Key.', 'error');
+                return;
+            }
+
+            getSecretKeyButton.disabled = true;
+            getSecretKeyButton.textContent = 'Đang xử lý...';
+            displayStatus('Đang yêu cầu Secret Key từ Auth Center...', 'info');
+
+            try {
+                const response = await fetch(AUTH_CENTER_SECRET_KEY_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const filenameHeader = response.headers.get('Content-Disposition');
+                    let filename = "secret_key.bin";
+                    if (filenameHeader) {
+                        const match = filenameHeader.match(/filename="?([^"]+)"?/);
+                        if (match && match[1]) filename = match[1];
+                    }
+
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    a.remove();
+                    displayStatus(`Tải Secret Key thành công. File '${filename}' đã được lưu.`, 'success');
+                } else {
+                    const errorData = await response.json().catch(() => ({ detail: "Lỗi không xác định từ server." }));
+                    displayStatus(`Lỗi ${response.status}: ${errorData.detail || errorData.error || 'Không thể lấy Secret Key.'}`, 'error');
+                }
+            } catch (error) {
+                console.error('Lỗi kết nối khi yêu cầu Secret Key:', error);
+                displayStatus('Lỗi kết nối hoặc sự cố mạng khi yêu cầu Secret Key.', 'error');
+            } finally {
+                getSecretKeyButton.disabled = false;
+                getSecretKeyButton.textContent = '2. Tải Secret Key Cá Nhân (CP-ABE)';
+                checkLoginStatus(); // Cập nhật lại trạng thái nút
+            }
+        });
+
+        goToUploadButton.addEventListener('click', () => {
+            const accessToken = localStorage.getItem('mainServer_accessToken');
+            if (!accessToken) {
+                displayStatus('Vui lòng đăng nhập để upload tài liệu.', 'error');
+                // Tùy chọn: chuyển hướng đến trang login
+                // window.location.href = MAIN_SERVER_LOGIN_PAGE_URL;
+                return;
+            }
+            window.location.href = MAIN_SERVER_UPLOAD_PAGE_URL;
+        });
+
+        goToDecryptButton.addEventListener('click', () => {
+            const accessToken = localStorage.getItem('mainServer_accessToken');
+            if (!accessToken) {
+                displayStatus('Vui lòng đăng nhập để giải mã tài liệu.', 'error');
+                return;
+            }
+            window.location.href = MAIN_SERVER_DECRYPT_PAGE_URL;
+        });
+
+        logoutButton.addEventListener('click', async () => {
+            const accessToken = localStorage.getItem('mainServer_accessToken');
+            const refreshToken = localStorage.getItem('mainServer_refreshToken');
+
+            if (accessToken && refreshToken && AUTH_CENTER_LOGOUT_API_URL) {
+                try {
+                    // Gọi API logout của Auth Center để blacklist refresh token (nếu có)
+                    await fetch(AUTH_CENTER_LOGOUT_API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${accessToken}` // Một số endpoint logout yêu cầu access token
+                        },
+                        body: JSON.stringify({ refresh: refreshToken })
+                    });
+                    console.log("Called Auth Center logout API.");
+                } catch (error) {
+                    console.error("Error calling Auth Center logout API:", error);
+                    // Vẫn tiếp tục logout ở client dù API có lỗi
+                }
+            }
+
+            localStorage.removeItem('mainServer_accessToken');
+            localStorage.removeItem('mainServer_refreshToken');
+            localStorage.removeItem('mainServer_user');
+            displayStatus('Bạn đã đăng xuất thành công.', 'success');
+            checkLoginStatus();
+            // Tùy chọn: chuyển hướng về trang login hoặc trang chủ public
+            // window.location.href = MAIN_SERVER_LOGIN_PAGE_URL;
+        });
+
+        // Kiểm tra trạng thái đăng nhập khi trang tải
+        document.addEventListener('DOMContentLoaded', checkLoginStatus);
+    </script>
+</body>
+</html>

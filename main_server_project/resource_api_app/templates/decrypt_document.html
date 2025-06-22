@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giải Mã Dữ Liệu Y Tế</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #eef1f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 1000px;
+        margin: 30px auto;
+        background-color: #fff;
+        padding: 20px 30px 30px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 30px;
+        font-weight: 600;
+      }
+      .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      .form-group {
+        margin-bottom: 18px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.95em;
+      }
+      .form-group input[type="text"] {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .form-group input[type="text"]:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+        margin-right: 10px;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .message-area {
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 0.95em;
+      }
+      .success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+      }
+      .info {
+        background-color: #cff4fc;
+        color: #055160;
+        border-color: #b6effb;
+      }
+      .warning {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+      }
+      .records-container {
+        margin-top: 20px;
+      }
+      .record-item {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 15px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        background-color: #fff;
+      }
+      .record-item:hover {
+        background-color: #f8f9fa;
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+      }
+      .record-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .record-title {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 1.1em;
+      }
+      .record-date {
+        color: #6c757d;
+        font-size: 0.9em;
+      }
+      .record-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 10px;
+      }
+      .record-field {
+        display: flex;
+        flex-direction: column;
+      }
+      .record-field label {
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.85em;
+        margin-bottom: 2px;
+      }
+      .record-field span {
+        color: #212529;
+      }
+      .decrypt-button {
+        background-color: #28a745;
+        margin-top: 10px;
+      }
+      .decrypt-button:hover {
+        background-color: #1e7e34;
+      }
+      .no-records {
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+        padding: 40px 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        border: 1px dashed #dee2e6;
+      }
+      .search-header {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Giải Mã Dữ Liệu Y Tế - Tìm Theo Bệnh Nhân</h2>
+
+      <div class="form-section">
+        <div class="search-header">
+          <h3>🔍 Tìm Kiếm Bản Ghi</h3>
+          <div class="form-group">
+            <label for="patientIdInput">Mã Bệnh Nhân:</label>
+            <input 
+              type="text" 
+              id="patientIdInput" 
+              placeholder="Nhập mã bệnh nhân (ví dụ: P001, PATIENT123, ...)" 
+              onkeypress="handleEnterKey(event)"
+            />
+          </div>
+          <button onclick="searchRecords()">Tìm Kiếm Bản Ghi</button>
+          <button onclick="clearResults()" style="background-color: #6c757d;">Xóa Kết Quả</button>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div id="recordsSection" style="display: none;">
+          <h3 id="recordsTitle">📋 Danh Sách Bản Ghi</h3>
+          <div id="recordsContainer" class="records-container">
+            <!-- Records will be populated here -->
+          </div>
+        </div>
+      </div>
+
+      <div id="submissionStatus" class="message-area" style="display: none;"></div>
+    </div>
+
+    <script>
+      // --- DOM Elements ---
+      const patientIdInput = document.getElementById("patientIdInput");
+      const recordsSection = document.getElementById("recordsSection");
+      const recordsTitle = document.getElementById("recordsTitle");
+      const recordsContainer = document.getElementById("recordsContainer");
+      const statusMessageElement = document.getElementById("submissionStatus");
+
+      // --- API URLs ---
+      const LIST_BY_PATIENT_API_URL = "/api/ehr/patient/";
+
+      // --- Helper Functions ---
+      function displayStatus(message, type = "info") {
+        statusMessageElement.textContent = message;
+        statusMessageElement.className = `message-area ${type}`;
+        statusMessageElement.style.display = "block";
+        setTimeout(() => {
+          statusMessageElement.style.display = "none";
+        }, 5000);
+      }
+
+      function handleEnterKey(event) {
+        if (event.key === "Enter") {
+          searchRecords();
+        }
+      }
+
+      function clearResults() {
+        recordsSection.style.display = "none";
+        recordsContainer.innerHTML = "";
+        patientIdInput.value = "";
+        statusMessageElement.style.display = "none";
+      }
+
+      function formatDateTime(dateString) {
+        return new Date(dateString).toLocaleString('vi-VN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      function getDataTypeDisplayName(dataType) {
+        const typeMap = {
+          'CONSULTATION_NOTE': 'Ghi chú khám bệnh',
+          'LAB_RESULT_SUMMARY': 'Tóm tắt KQ Xét nghiệm',
+          'TREATMENT_PLAN': 'Kế hoạch điều trị',
+          'OTHER_SENSITIVE_NOTE': 'Ghi chú nhạy cảm khác'
+        };
+        return typeMap[dataType] || dataType;
+      }
+
+      // --- Search Records ---
+      async function searchRecords() {
+        const patientId = patientIdInput.value.trim();
+        if (!patientId) {
+          displayStatus("Vui lòng nhập mã bệnh nhân.", "error");
+          return;
+        }
+
+        displayStatus("Đang tìm kiếm bản ghi...", "info");
+        
+        try {
+          const accessToken = localStorage.getItem("mainServer_accessToken") ||
+                             localStorage.getItem("access_token") ||
+                             "dummy_token_for_test";
+
+          const response = await fetch(`${LIST_BY_PATIENT_API_URL}${encodeURIComponent(patientId)}/`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            displayRecords(data);
+            if (data.records.length > 0) {
+              displayStatus(data.message, "success");
+            } else {
+              displayStatus(data.message, "warning");
+            }
+          } else {
+            const errorData = await response.json();
+            displayStatus(`Lỗi tìm kiếm: ${errorData.error || "Unknown error"}`, "error");
+          }
+        } catch (error) {
+          console.error("Error searching records:", error);
+          displayStatus("Lỗi kết nối khi tìm kiếm bản ghi.", "error");
+        }
+      }
+
+      function displayRecords(data) {
+        const { patient_id, total_records, records } = data;
+        
+        recordsTitle.textContent = `📋 Bản Ghi Của Bệnh Nhân: ${patient_id} (${total_records} bản ghi)`;
+        
+        if (records.length === 0) {
+          recordsContainer.innerHTML = `
+            <div class="no-records">
+              <h4>Không tìm thấy bản ghi nào</h4>
+              <p>Bệnh nhân "${patient_id}" chưa có bản ghi y tế nào trong hệ thống.</p>
+            </div>
+          `;
+        } else {
+          recordsContainer.innerHTML = records.map(record => `
+            <div class="record-item" onclick="selectRecordForDecryption('${record.id}')">
+              <div class="record-header">
+                <div class="record-title">${record.description}</div>
+                <div class="record-date">${formatDateTime(record.created_at)}</div>
+              </div>
+              
+                             <div class="record-details">
+                 <div class="record-field">
+                   <label>ID Bản Ghi:</label>
+                   <span>${record.id}</span>
+                 </div>
+                 <div class="record-field">
+                   <label>Loại Dữ Liệu:</label>
+                   <span>${getDataTypeDisplayName(record.data_type)}</span>
+                 </div>
+                 <div class="record-field">
+                   <label>Tạo Bởi User ID:</label>
+                   <span>${record.created_by_ac_user_id}</span>
+                 </div>
+                 <div class="record-field">
+                   <label>Cập Nhật Lần Cuối:</label>
+                   <span>${formatDateTime(record.updated_at)}</span>
+                 </div>
+               </div>
+              
+              <button class="decrypt-button" onclick="event.stopPropagation(); selectRecordForDecryption('${record.id}')">
+                🔓 Giải Mã Bản Ghi Này
+              </button>
+            </div>
+          `).join('');
+        }
+        
+        recordsSection.style.display = "block";
+      }
+
+      // --- Record Selection ---
+      function selectRecordForDecryption(recordId) {
+        displayStatus("Chuyển hướng đến trang giải mã...", "info");
+        
+        // Chuyển hướng đến trang decrypt cụ thể với record ID
+        window.location.href = `/decrypt-record/${recordId}/`;
+      }
+
+      // --- Initial Page Load ---
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("Patient search page loaded");
+        displayStatus("Nhập mã bệnh nhân để tìm kiếm bản ghi y tế.", "info");
+        
+        // Focus vào input field
+        patientIdInput.focus();
+      });
+    </script>
+  </body>
+</html> 

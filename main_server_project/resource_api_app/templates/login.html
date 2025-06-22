@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login (via Auth Center)</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; min-height: 90vh; }
+        .container { background-color: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: bold; }
+        input[type="text"], input[type="password"] {
+            width: calc(100% - 24px); padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;
+        }
+        button { width: 100%; padding: 12px; background-color: #5cb85c; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #4cae4c; }
+        .message-area { margin-top: 20px; padding: 12px; border-radius: 4px; text-align: center; }
+        .success { background-color: #dff0d8; color: #3c763d; border: 1px solid #d6e9c6; }
+        .error { background-color: #f2dede; color: #a94442; border: 1px solid #ebccd1; }
+        .token-display { margin-top: 20px; padding: 10px; background-color: #e9ecef; border: 1px solid #ced4da; border-radius: 4px; word-wrap: break-word; font-size: 0.9em; }
+        .token-display code { background-color: #fff; padding: 2px 4px; border-radius: 3px; }
+        p a { color: #007bff; text-decoration: none; }
+        p a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Login to Main Service</h2>
+        <p style="text-align: center; font-size: 0.9em; color: #777;">(Authentication by Auth Center)</p>
+        <form id="loginFormOnMainServer">
+            <div>
+                <label for="usernameField">Username:</label>
+                <input type="text" id="usernameField" name="usernameField" required>
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" id="loginButton">Login</button>
+        </form>
+        <div id="messageDisplay" class="message-area" style="display:none;"></div>
+        <div id="tokenDisplayArea" class="token-display" style="display:none;">
+            <h4>Tokens Received:</h4>
+            <p><strong>Access Token:</strong> <code id="accessTokenDisplay"></code></p>
+            <p><strong>Refresh Token:</strong> <code id="refreshTokenDisplay"></code></p>
+            <p style="font-size:0.8em; margin-top:10px;">(These tokens would typically be stored and used for subsequent API calls to this Main Server)</p>
+        </div>
+        <!-- Link to register page (if you create one on Main Server that calls AC's register API) -->
+        <!-- <p style="text-align:center; margin-top:15px;">Don't have an account? <a href="/accounts/ui/register/">Register</a></p> -->
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('loginFormOnMainServer');
+        const messageDisplay = document.getElementById('messageDisplay');
+        const tokenDisplayArea = document.getElementById('tokenDisplayArea');
+        const accessTokenElem = document.getElementById('accessTokenDisplay');
+        const refreshTokenElem = document.getElementById('refreshTokenDisplay');
+        const loginButton = document.getElementById('loginButton');
+
+        // Lấy URL từ context của Django template (an toàn hơn)
+        // Hoặc hardcode nếu bạn không truyền từ view
+        const AUTH_CENTER_LOGIN_API = "{{ 'http://localhost:8000/api/auth/login/' }}";
+
+        loginForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            messageDisplay.style.display = 'none';
+            tokenDisplayArea.style.display = 'none';
+            messageDisplay.textContent = '';
+            messageDisplay.className = 'message-area';
+
+            const username = document.getElementById('usernameField').value;
+            const password = document.getElementById('password').value;
+
+            // dj_rest_auth.views.LoginView (kế thừa từ simplejwt's TokenObtainPairView)
+            // thường mong đợi 'username' và 'password' hoặc 'email' và 'password'.
+            // Nếu Auth Center của bạn cấu hình ACCOUNT_AUTHENTICATION_METHOD là 'email',
+            // bạn nên gửi 'email' thay vì 'username'.
+            // Hoặc, nếu là 'username_email', bạn có thể gửi trường mà người dùng nhập.
+            // Để đơn giản, ví dụ này gửi 'username'. Nếu AC của bạn dùng 'email' để login,
+            // hãy đổi 'username' thành 'email' ở đây.
+            const loginPayload = {
+                username: username, // HOẶC email: username, tùy cấu hình AC
+                password: password
+            };
+
+            try {
+                const response = await fetch(AUTH_CENTER_LOGIN_API, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(loginPayload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    displayMessage('Login successful!', 'success');
+                    if (data.access && data.refresh) { // simplejwt trả về 'access' và 'refresh'
+                        accessTokenElem.textContent = data.access.substring(0, 30) + "..."; // Hiển thị một phần
+                        refreshTokenElem.textContent = data.refresh.substring(0, 30) + "...";
+                        tokenDisplayArea.style.display = 'block';
+
+                        // Lưu token vào localStorage để sử dụng cho các API của Main Server
+                        localStorage.setItem('mainServer_accessToken', data.access);
+                        localStorage.setItem('mainServer_refreshToken', data.refresh);
+                        // console.log("Access Token:", data.access);
+                        // console.log("Refresh Token:", data.refresh);
+
+                        window.location.href = '/home/';
+                    } else if (data.access_token && data.refresh_token) { // dj_rest_auth có thể wrap nó
+                        accessTokenElem.textContent = data.access_token.substring(0, 30) + "...";
+                        refreshTokenElem.textContent = data.refresh_token.substring(0, 30) + "...";
+                        tokenDisplayArea.style.display = 'block';
+                        localStorage.setItem('mainServer_accessToken', data.access_token);
+                        localStorage.setItem('mainServer_refreshToken', data.refresh_token);
+                    }
+                    else {
+                        displayMessage('Login successful, but token format is unexpected.', 'error');
+                        console.error("Unexpected token format:", data);
+                    }
+                } else {
+                    let errorMessages = [];
+                    if (data) {
+                        if (data.detail) { // Lỗi chung từ DRF/dj_rest_auth
+                            errorMessages.push(data.detail);
+                        } else if (data.non_field_errors) {
+                            errorMessages = data.non_field_errors;
+                        } else {
+                            for (const key in data) {
+                                errorMessages.push(`${key}: ${Array.isArray(data[key]) ? data[key].join(', ') : data[key]}`);
+                            }
+                        }
+                    }
+                    displayMessage('Login failed: ' + (errorMessages.join('; ') || `Status ${response.status}`), 'error');
+                }
+            } catch (error) {
+                console.error('Error during login request to Auth Center:', error);
+                displayMessage('An error occurred. Please check console and network tab.', 'error');
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
+            }
+        });
+
+        function displayMessage(msg, type) {
+            messageDisplay.textContent = msg;
+            messageDisplay.className = `message-area ${type}`;
+            messageDisplay.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

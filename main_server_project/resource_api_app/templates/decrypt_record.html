@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Giải Mã Bản Ghi Y Tế</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #eef1f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 900px;
+        margin: 30px auto;
+        background-color: #fff;
+        padding: 20px 30px 30px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 30px;
+        font-weight: 600;
+      }
+      .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      .form-group {
+        margin-bottom: 18px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.95em;
+      }
+      .form-group input[type="text"],
+      .form-group input[type="file"],
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .form-group input[type="text"]:focus,
+      .form-group input[type="file"]:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      .form-group textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+      button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+        margin-right: 10px;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .message-area {
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 0.95em;
+      }
+      .success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+      }
+      .info {
+        background-color: #cff4fc;
+        color: #055160;
+        border-color: #b6effb;
+      }
+      .warning {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+      }
+      .file-upload-status {
+        font-size: 0.9em;
+        margin-left: 10px;
+        color: #28a745;
+      }
+      .data-section {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+      }
+      .data-section h4 {
+        margin-top: 0;
+        color: #495057;
+      }
+      .data-field {
+        margin-bottom: 10px;
+      }
+      .data-field strong {
+        color: #2c3e50;
+      }
+      .decrypted-content {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        padding: 15px;
+        border-radius: 5px;
+        margin-top: 15px;
+      }
+      .navigation-buttons {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .navigation-buttons button {
+        background-color: #6c757d;
+        margin: 0 5px;
+      }
+      .navigation-buttons button:hover {
+        background-color: #545b62;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Giải Mã Bản Ghi Y Tế</h2>
+
+      <div class="navigation-buttons">
+        <button onclick="goBack()">← Quay Lại Danh Sách</button>
+        <button onclick="goHome()">🏠 Trang Chủ</button>
+      </div>
+
+      <div class="form-section">
+        <h3>1. Thông Tin Bản Ghi</h3>
+        <div id="recordInfo" class="data-section">
+          <div id="loadingRecord">Đang tải thông tin bản ghi...</div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>2. Khóa Giải Mã</h3>
+        <div class="form-group">
+          <label for="publicKeyFile">Tải lên file Public Key (.bin hoặc .json):</label>
+          <input type="file" id="publicKeyFile" accept=".bin,.json" disabled />
+          <span id="publicKeyStatus" class="file-upload-status"></span>
+        </div>
+        <div class="form-group">
+          <label for="privateKeyFile">Tải lên file Private Key (.bin hoặc .json):</label>
+          <input type="file" id="privateKeyFile" accept=".bin,.json" disabled />
+          <span id="privateKeyStatus" class="file-upload-status"></span>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h3>3. Giải Mã</h3>
+        <button id="decryptButton" onclick="decryptRecord()" disabled>Giải Mã Nội Dung</button>
+        
+        <div id="decryptedResult" class="decrypted-content" style="display: none;">
+          <h4>Nội dung đã giải mã:</h4>
+          <div id="decryptedContent"></div>
+        </div>
+      </div>
+
+      <div id="submissionStatus" class="message-area" style="display: none;"></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <h3>Đang khởi tạo hệ thống giải mã...</h3>
+        <p id="loadingStatus">Đang tải Pyodide và thư viện Charm-Crypto</p>
+      </div>
+    </div>
+
+    <style>
+      .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 9999;
+        color: white;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      .loading-overlay.show {
+        display: flex;
+      }
+      .loading-content {
+        text-align: center;
+      }
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+
+    <script>
+      // --- DOM Elements ---
+      const recordInfo = document.getElementById("recordInfo");
+      const publicKeyFileInput = document.getElementById("publicKeyFile");
+      const publicKeyStatus = document.getElementById("publicKeyStatus");
+      const privateKeyFileInput = document.getElementById("privateKeyFile");
+      const privateKeyStatus = document.getElementById("privateKeyStatus");
+      const decryptButton = document.getElementById("decryptButton");
+      const decryptedResult = document.getElementById("decryptedResult");
+      const decryptedContent = document.getElementById("decryptedContent");
+      const statusMessageElement = document.getElementById("submissionStatus");
+
+      // --- Global State ---
+      let pyodide = null;
+      let publicKeyObject = null;
+      let privateKeyObject = null;
+      let currentRecord = null;
+
+      // --- API URLs ---
+      const RETRIEVE_API_URL = "/api/ehr/";
+
+      // --- Helper Functions ---
+      function displayStatus(message, type = "info") {
+        statusMessageElement.textContent = message;
+        statusMessageElement.className = `message-area ${type}`;
+        statusMessageElement.style.display = "block";
+      }
+
+      function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        try {
+          return window.btoa(binary);
+        } catch (error) {
+          console.warn("btoa failed, using alternative encoding");
+          const binaryString = Array.from(bytes, (byte) =>
+            String.fromCharCode(byte)
+          ).join("");
+          return btoa(unescape(encodeURIComponent(binaryString)));
+        }
+      }
+
+      function base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+
+      function goBack() {
+        window.history.back();
+      }
+
+      function goHome() {
+        window.location.href = "/";
+      }
+
+      function getDataTypeDisplayName(dataType) {
+        const typeMap = {
+          'CONSULTATION_NOTE': 'Ghi chú khám bệnh',
+          'LAB_RESULT_SUMMARY': 'Tóm tắt KQ Xét nghiệm',
+          'TREATMENT_PLAN': 'Kế hoạch điều trị',
+          'OTHER_SENSITIVE_NOTE': 'Ghi chú nhạy cảm khác'
+        };
+        return typeMap[dataType] || dataType;
+      }
+
+      // --- Get Record ID from URL ---
+      function getRecordIdFromURL() {
+        const path = window.location.pathname;
+        const match = path.match(/\/decrypt-record\/([^\/]+)\//);
+        return match ? match[1] : null;
+      }
+
+      // --- Pyodide Initialization (same as upload) ---
+      async function initializePyodide() {
+        // Show loading overlay
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const loadingStatus = document.getElementById("loadingStatus");
+        loadingOverlay.classList.add("show");
+        
+        try {
+          loadingStatus.textContent = "Đang tải Pyodide...";
+          
+          // Load Pyodide (ẩn stdout/stderr logs)
+          pyodide = await loadPyodide({
+            stdout: () => {}, // Ẩn logs
+            stderr: () => {}, // Ẩn error logs
+          });
+
+          loadingStatus.textContent = "Đang tải micropip...";
+          await pyodide.loadPackage("micropip");
+          const micropip = pyodide.pyimport("micropip");
+
+          loadingStatus.textContent = "Đang cài đặt Charm-Crypto...";
+          const charmWheelURL = "https://quackusarle.github.io/charm_crypto_wheel_for_pyodide/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
+          await micropip.install(charmWheelURL);
+
+          loadingStatus.textContent = "Đang khởi tạo hệ thống CP-ABE...";
+          // Initialize CP-ABE system same as upload template
+          await pyodide.runPythonAsync(`
+from charm.toolbox.pairinggroup import PairingGroup
+from charm.schemes.abenc.waters11 import Waters11
+
+group = PairingGroup('SS512')
+waters_abe = Waters11(group, uni_size=100)
+
+globals()['_waters11_abe_scheme'] = waters_abe
+globals()['_waters11_group'] = group
+`);
+
+          // Test initialization
+          const testResult = await pyodide.runPythonAsync(`
+result = "SUCCESS"
+try:
+    _waters11_abe_scheme
+    _waters11_group
+except NameError as e:
+    result = f"FAILED: {str(e)}"
+except Exception as e:
+    result = f"ERROR: {str(e)}"
+result
+`);
+
+          if (testResult !== "SUCCESS") {
+            throw new Error(`Lỗi khởi tạo Waters11: ${testResult}`);
+          }
+
+          // Ẩn loading overlay
+          loadingOverlay.classList.remove("show");
+          
+          displayStatus("Thư viện giải mã đã sẵn sàng. Vui lòng tải lên Public Key và Private Key.", "success");
+          publicKeyFileInput.disabled = false;
+          privateKeyFileInput.disabled = false;
+        } catch (error) {
+          // Ẩn loading overlay khi có lỗi
+          loadingOverlay.classList.remove("show");
+          
+          console.error("Lỗi khởi tạo Pyodide hoặc Charm:", error);
+          displayStatus(`Lỗi khởi tạo thư viện giải mã: ${error.message}`, "error");
+        }
+      }
+
+      // --- Record Loading ---
+      async function loadRecordById(recordId) {
+        displayStatus("Đang tải bản ghi...", "info");
+        try {
+          const accessToken = localStorage.getItem("mainServer_accessToken") ||
+                             localStorage.getItem("access_token") ||
+                             "dummy_token_for_test";
+
+          const response = await fetch(`${RETRIEVE_API_URL}${recordId}/`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const record = await response.json();
+            currentRecord = record;
+            displayRecordInfo(record);
+            displayStatus("Bản ghi đã được tải thành công.", "success");
+            updateDecryptButtonState();
+          } else {
+            const errorData = await response.json();
+            displayStatus(`Lỗi tải bản ghi: ${errorData.error || "Unknown error"}`, "error");
+            recordInfo.innerHTML = `
+              <div style="color: #842029; text-align: center;">
+                <h4>❌ Lỗi Tải Bản Ghi</h4>
+                <p>${errorData.error || "Không thể tải bản ghi"}</p>
+                <button onclick="goBack()">Quay Lại</button>
+              </div>
+            `;
+          }
+        } catch (error) {
+          console.error("Error loading record:", error);
+          displayStatus("Lỗi kết nối khi tải bản ghi.", "error");
+          recordInfo.innerHTML = `
+            <div style="color: #842029; text-align: center;">
+              <h4>❌ Lỗi Kết Nối</h4>
+              <p>Không thể kết nối đến server để tải bản ghi.</p>
+              <button onclick="goBack()">Quay Lại</button>
+            </div>
+          `;
+        }
+      }
+
+      function displayRecordInfo(record) {
+        recordInfo.innerHTML = `
+          <h4>Thông Tin Bản Ghi</h4>
+          <div class="data-field"><strong>ID:</strong> ${record.id}</div>
+          <div class="data-field"><strong>Mã Bệnh Nhân:</strong> ${record.patient_id_on_rs}</div>
+          <div class="data-field"><strong>Mô Tả:</strong> ${record.description}</div>
+          <div class="data-field"><strong>Loại Dữ Liệu:</strong> ${getDataTypeDisplayName(record.data_type)}</div>
+          <div class="data-field"><strong>Ngày Tạo:</strong> ${new Date(record.created_at).toLocaleString('vi-VN')}</div>
+        `;
+      }
+
+      // --- Public Key Handling (same pattern as upload) ---
+      publicKeyFileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          publicKeyStatus.textContent = "Chưa chọn file.";
+          publicKeyObject = null;
+          updateDecryptButtonState();
+          return;
+        }
+
+        if (!pyodide) {
+          displayStatus("Thư viện giải mã chưa sẵn sàng.", "error");
+          publicKeyObject = null;
+          updateDecryptButtonState();
+          return;
+        }
+
+        publicKeyStatus.textContent = `Đang đọc file: ${file.name}...`;
+        try {
+          let publicKeyData = null;
+
+          if (file.name.endsWith(".json")) {
+            const fileText = await file.text();
+            try {
+              publicKeyData = JSON.parse(fileText);
+              if (!publicKeyData || typeof publicKeyData !== "object") {
+                throw new Error("Public key JSON không hợp lệ");
+              }
+            } catch (parseError) {
+              throw new Error(`File JSON không hợp lệ: ${parseError.message}`);
+            }
+          } else {
+            // Binary format - use same approach as upload template
+            const fileBuffer = await file.arrayBuffer();
+            const pkBytes = new Uint8Array(fileBuffer);
+
+
+
+            const result = await pyodide.runPythonAsync(`
+import base64
+import json
+from charm.core.engine.util import bytesToObject
+
+result_data = None
+error_info = None
+
+try:
+    pk_bytes_list = ${JSON.stringify(Array.from(pkBytes))}
+    pk_bytes = bytes(pk_bytes_list)
+    
+    print(f"Received {len(pk_bytes)} bytes for public key deserialization")
+    
+    if '_waters11_group' not in globals():
+        raise Exception("Waters11 group not initialized")
+        
+    group = _waters11_group
+    pk_obj = bytesToObject(pk_bytes, group)
+    
+    globals()['_global_public_key_object'] = pk_obj
+    
+    pk_info = {
+        "keys": list(pk_obj.keys()) if hasattr(pk_obj, 'keys') else [],
+        "status": "loaded",
+        "type": "charm_pk_object"
+    }
+    
+    result_data = pk_info
+    print(f"Successfully loaded public key")
+    
+except Exception as e:
+    error_info = str(e)
+    print(f"Error deserializing public key: {e}")
+    import traceback
+    print(f"Traceback: {traceback.format_exc()}")
+
+if result_data:
+    result = json.dumps(result_data)
+else:
+    result = json.dumps({"error": error_info or "Unknown error"})
+
+result
+`);
+
+            const parsedResult = JSON.parse(result);
+            if (parsedResult.error) {
+              throw new Error(`Python error: ${parsedResult.error}`);
+            }
+
+            publicKeyData = parsedResult;
+          }
+
+          publicKeyObject = publicKeyData;
+          publicKeyStatus.textContent = `Đã tải Public Key: ${file.name}`;
+          publicKeyStatus.style.color = "green";
+          displayStatus("Public Key đã sẵn sàng.", "success");
+          updateDecryptButtonState();
+
+        } catch (error) {
+          console.error("Lỗi xử lý Public Key:", error);
+          publicKeyStatus.textContent = `Lỗi: ${error.message}`;
+          publicKeyStatus.style.color = "red";
+          publicKeyObject = null;
+          updateDecryptButtonState();
+          displayStatus(`Lỗi xử lý public key: ${error.message}`, "error");
+        }
+      });
+
+      // --- Private Key Handling (same pattern as upload) ---
+      privateKeyFileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          privateKeyStatus.textContent = "Chưa chọn file.";
+          privateKeyObject = null;
+          updateDecryptButtonState();
+          return;
+        }
+
+        if (!pyodide) {
+          displayStatus("Thư viện giải mã chưa sẵn sàng.", "error");
+          privateKeyObject = null;
+          updateDecryptButtonState();
+          return;
+        }
+
+        privateKeyStatus.textContent = `Đang đọc file: ${file.name}...`;
+        try {
+          let privateKeyData = null;
+
+          if (file.name.endsWith(".json")) {
+            const fileText = await file.text();
+            try {
+              privateKeyData = JSON.parse(fileText);
+              if (!privateKeyData || typeof privateKeyData !== "object") {
+                throw new Error("Private key JSON không hợp lệ");
+              }
+            } catch (parseError) {
+              throw new Error(`File JSON không hợp lệ: ${parseError.message}`);
+            }
+          } else {
+            // Binary format - use same approach as upload template
+            const fileBuffer = await file.arrayBuffer();
+            const skBytes = new Uint8Array(fileBuffer);
+
+
+
+            const result = await pyodide.runPythonAsync(`
+import base64
+import json
+from charm.core.engine.util import bytesToObject
+
+result_data = None
+error_info = None
+
+try:
+    sk_bytes_list = ${JSON.stringify(Array.from(skBytes))}
+    sk_bytes = bytes(sk_bytes_list)
+    
+    print(f"Received {len(sk_bytes)} bytes for private key deserialization")
+    
+    if '_waters11_group' not in globals():
+        raise Exception("Waters11 group not initialized")
+        
+    group = _waters11_group
+    sk_obj = bytesToObject(sk_bytes, group)
+    
+    globals()['_global_private_key_object'] = sk_obj
+    
+    sk_info = {
+        "keys": list(sk_obj.keys()) if hasattr(sk_obj, 'keys') else [],
+        "status": "loaded",
+        "type": "charm_sk_object"
+    }
+    
+    result_data = sk_info
+    print(f"Successfully loaded private key")
+    
+except Exception as e:
+    error_info = str(e)
+    print(f"Error deserializing private key: {e}")
+    import traceback
+    print(f"Traceback: {traceback.format_exc()}")
+
+if result_data:
+    result = json.dumps(result_data)
+else:
+    result = json.dumps({"error": error_info or "Unknown error"})
+
+result
+`);
+
+            const parsedResult = JSON.parse(result);
+            if (parsedResult.error) {
+              throw new Error(`Python error: ${parsedResult.error}`);
+            }
+
+            privateKeyData = parsedResult;
+          }
+
+          privateKeyObject = privateKeyData;
+          privateKeyStatus.textContent = `Đã tải Private Key: ${file.name}`;
+          privateKeyStatus.style.color = "green";
+          displayStatus("Private Key đã sẵn sàng.", "success");
+          updateDecryptButtonState();
+
+        } catch (error) {
+          console.error("Lỗi xử lý Private Key:", error);
+          privateKeyStatus.textContent = `Lỗi: ${error.message}`;
+          privateKeyStatus.style.color = "red";
+          privateKeyObject = null;
+          updateDecryptButtonState();
+          displayStatus(`Lỗi xử lý private key: ${error.message}`, "error");
+        }
+      });
+
+      function updateDecryptButtonState() {
+        const hasPublicKey = publicKeyObject !== null;
+        const hasPrivateKey = privateKeyObject !== null;
+        const hasRecord = currentRecord !== null;
+        
+        decryptButton.disabled = !hasPublicKey || !hasPrivateKey || !hasRecord || !pyodide;
+        
+        if (!hasRecord) {
+          decryptButton.textContent = "Đang tải record...";
+        } else if (!hasPublicKey) {
+          decryptButton.textContent = "Cần Public Key để giải mã";
+        } else if (!hasPrivateKey) {
+          decryptButton.textContent = "Cần Private Key để giải mã";
+        } else if (!pyodide) {
+          decryptButton.textContent = "Đang khởi tạo hệ thống...";
+        } else {
+          decryptButton.textContent = "Giải Mã Nội Dung";
+        }
+      }
+
+      // --- Decryption Logic ---
+      async function decryptRecord() {
+        if (!currentRecord || !publicKeyObject || !privateKeyObject || !pyodide) {
+          displayStatus("Thiếu thông tin cần thiết để giải mã (cần Public Key, Private Key và record).", "error");
+          return;
+        }
+
+        displayStatus("Đang giải mã...", "info");
+        decryptButton.disabled = true;
+
+        try {
+          const result = await pyodide.runPythonAsync(`
+from charm.toolbox.pairinggroup import GT, G1, G2, ZR
+import base64
+import json
+import hashlib
+from charm.core.engine.util import bytesToObject
+
+print("Starting decryption process...")
+final_result = None
+
+try:
+    # Check required objects
+    if '_waters11_abe_scheme' not in globals():
+        raise Exception("Waters11 ABE scheme not initialized")
+    if '_waters11_group' not in globals():
+        raise Exception("Waters11 group not initialized")
+    if '_global_private_key_object' not in globals():
+        raise Exception("Private key not loaded")
+
+    waters_abe = _waters11_abe_scheme
+    group = _waters11_group
+    sk = _global_private_key_object
+
+    # Deserialize the ciphertext
+    encrypted_kek_b64 = "${currentRecord.encrypted_kek_b64}"
+    ciphertext_bytes = base64.b64decode(encrypted_kek_b64)
+    ciphertext = bytesToObject(ciphertext_bytes, group)
+    
+    print(f"Ciphertext keys: {list(ciphertext.keys())}")
+    
+    # Fix policy structure if needed
+    # During encryption, policy was converted to string to avoid BinNode serialization issues
+    # Now we need to convert it back to policy tree for decryption
+    if 'policy' in ciphertext and isinstance(ciphertext['policy'], str):
+        print("Converting string policy back to tree structure...")
+        policy_tree = waters_abe.util.createPolicy(ciphertext['policy'])
+        ciphertext['policy'] = policy_tree
+        print("✓ Policy tree reconstructed")
+    elif 'policy' not in ciphertext:
+        raise Exception("Ciphertext missing required 'policy' key")
+
+    # Validate private key structure
+    if not isinstance(sk, dict) or 'attr_list' not in sk:
+        raise Exception("Private key invalid or missing 'attr_list' field")
+
+    # Get public key and perform CP-ABE decryption
+    if '_global_public_key_object' not in globals():
+        raise Exception("Public key not loaded")
+    
+    pk = _global_public_key_object
+    print("Performing CP-ABE decryption...")
+    gt_message = waters_abe.decrypt(pk, ciphertext, sk)
+    print("✓ CP-ABE decryption successful")
+
+    # Derive the AES key from GT message
+    web_crypto_key_bytes = hashlib.sha256(group.serialize(gt_message)).digest()
+    web_crypto_key_base64 = base64.b64encode(web_crypto_key_bytes).decode('utf-8')
+    
+    final_result = {
+        "aes_key_base64": web_crypto_key_base64,
+        "status": "success"
+    }
+    
+    print("✓ AES key derived successfully")
+
+except Exception as e:
+    print(f"Decryption failed: {e}")
+    import traceback
+    print(f"Traceback: {traceback.format_exc()}")
+    final_result = {"error": str(e)}
+
+json.dumps(final_result)
+`);
+
+          const parsedResult = JSON.parse(result);
+          
+          if (parsedResult.error) {
+            throw new Error(parsedResult.error);
+          }
+         
+          // Now decrypt the content with AES
+          const aesKeyBytes = base64ToArrayBuffer(parsedResult.aes_key_base64);
+          const aesKey = await crypto.subtle.importKey(
+            "raw",
+            aesKeyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+          );
+
+          const iv = base64ToArrayBuffer(currentRecord.aes_iv_b64);
+          const encryptedContent = base64ToArrayBuffer(currentRecord.encrypted_main_content_b64);
+
+          const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            aesKey,
+            encryptedContent
+          );
+
+          const decryptedText = new TextDecoder().decode(decryptedBuffer);
+         
+          // Display the decrypted content
+          decryptedContent.innerHTML = `
+            <h5>Nội dung gốc:</h5>
+            <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+              ${decryptedText}
+            </div>
+          `;
+          decryptedResult.style.display = "block";
+
+          displayStatus("Giải mã thành công!", "success");
+
+        } catch (error) {
+          console.error("Decryption error:", error);
+          displayStatus(`Lỗi giải mã: ${error.message}`, "error");
+        } finally {
+          decryptButton.disabled = false;
+        }
+      }
+
+      // --- Initial Page Load ---
+      document.addEventListener("DOMContentLoaded", async function () {
+
+        
+        const recordId = getRecordIdFromURL();
+        if (!recordId) {
+          displayStatus("ID bản ghi không hợp lệ.", "error");
+          recordInfo.innerHTML = `
+            <div style="color: #842029; text-align: center;">
+              <h4>❌ Lỗi URL</h4>
+              <p>Không tìm thấy ID bản ghi trong URL.</p>
+              <button onclick="goHome()">Về Trang Chủ</button>
+            </div>
+          `;
+          return;
+        }
+
+        // Load record first
+        await loadRecordById(recordId);
+        
+        // Initialize Pyodide - disable file input until complete
+        privateKeyFileInput.disabled = true;
+        displayStatus("Đang khởi tạo thư viện giải mã...", "info");
+        await initializePyodide();
+      });
+    </script>
+  </body>
+</html> 

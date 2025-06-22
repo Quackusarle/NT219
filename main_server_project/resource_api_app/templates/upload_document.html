@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nhập và Mã Hóa Dữ Liệu Y Tế</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
+    <style>
+      /* (Sử dụng CSS tương tự như trang upload trước đó, có thể tùy chỉnh) */
+      body {
+        font-family: "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 20px;
+        background-color: #eef1f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 800px;
+        margin: 30px auto;
+        background-color: #fff;
+        padding: 20px 30px 30px 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        color: #2c3e50;
+        margin-bottom: 30px;
+        font-weight: 600;
+      }
+      .form-section {
+        margin-bottom: 25px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      .form-section:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+      }
+      .form-group {
+        margin-bottom: 18px;
+      }
+      .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #495057;
+        font-size: 0.95em;
+      }
+      .form-group input[type="text"],
+      .form-group input[type="file"],
+      .form-group textarea,
+      .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      .form-group input[type="text"]:focus,
+      .form-group input[type="file"]:focus,
+      .form-group textarea:focus,
+      .form-group select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      .form-group textarea {
+        resize: vertical;
+        min-height: 150px;
+      } /* Tăng chiều cao cho nội dung chính */
+      .policy-builder legend {
+        font-weight: 700;
+        font-size: 1.15em;
+        margin-bottom: 15px;
+        color: #34495e;
+        padding-bottom: 5px;
+        border-bottom: 1px solid #dee2e6;
+      }
+      .policy-category {
+        margin-bottom: 25px;
+        padding: 15px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        background-color: #fafafa;
+      }
+      .policy-category > label {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 12px;
+        display: block;
+        font-size: 1.05em;
+      }
+      .policy-option {
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        padding: 5px 0;
+      }
+      .policy-option input[type="checkbox"] {
+        margin-right: 10px;
+        width: auto;
+        transform: scale(1.1);
+      }
+      .policy-option label {
+        font-weight: normal;
+        color: #495057;
+        margin-bottom: 0;
+        cursor: pointer;
+        padding: 2px 5px;
+        border-radius: 3px;
+        transition: background-color 0.2s;
+      }
+      .policy-option label:hover {
+        background-color: #e9ecef;
+      }
+      #generatedPolicyPreviewContainer {
+        margin-top: 20px;
+        padding: 15px;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        background-color: #f8f9fa;
+      }
+      #generatedPolicyPreviewContainer strong {
+        font-weight: 600;
+        color: #34495e;
+        display: block;
+        margin-bottom: 10px;
+      }
+      #generatedPolicyPreview {
+        margin: 0;
+        padding: 12px;
+        background-color: #ffffff;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        font-family: "Courier New", Courier, monospace;
+        color: #495057;
+        min-height: 60px;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-size: 0.85em;
+        line-height: 1.4;
+        overflow-x: auto;
+      }
+      button {
+        display: inline-block;
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        transition: background-color 0.3s ease;
+        margin-right: 10px;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #0056b3;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .message-area {
+        margin-top: 20px;
+        padding: 12px;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 0.95em;
+      }
+      .success {
+        background-color: #d1e7dd;
+        color: #0f5132;
+        border: 1px solid #badbcc;
+      }
+      .error {
+        background-color: #f8d7da;
+        color: #842029;
+        border: 1px solid #f5c2c7;
+      }
+      .info {
+        background-color: #cff4fc;
+        color: #055160;
+        border-color: #b6effb;
+      }
+      .warning {
+        background-color: #fff3cd;
+        color: #664d03;
+        border: 1px solid #ffecb5;
+      }
+      .file-upload-status {
+        font-size: 0.9em;
+        margin-left: 10px;
+        color: #28a745;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Nhập và Mã Hóa Dữ Liệu Y Tế</h2>
+      <form id="ehrDataForm">
+        <div class="form-section">
+          <h3>Thông Tin Cơ Bản (Không mã hóa)</h3>
+          <div class="form-group">
+            <label for="patientIdInput">Mã Bệnh Nhân:</label>
+            <input type="text" id="patientIdInput" name="patient_id" required />
+          </div>
+          <div class="form-group">
+            <label for="documentDescriptionInput">Mô Tả Chung:</label>
+            <input
+              type="text"
+              id="documentDescriptionInput"
+              name="description"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label for="dataTypeSelect">Loại Dữ Liệu:</label>
+            <select id="dataTypeSelect" name="data_type" required>
+              <option value="">-- Vui lòng chọn --</option>
+              <option value="CONSULTATION_NOTE">Ghi chú khám bệnh</option>
+              <option value="LAB_RESULT_SUMMARY">Tóm tắt KQ Xét nghiệm</option>
+              <option value="TREATMENT_PLAN">Kế hoạch điều trị</option>
+              <option value="OTHER_SENSITIVE_NOTE">
+                Ghi chú nhạy cảm khác
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Nội Dung Chi Tiết (Sẽ được mã hóa)</h3>
+          <div class="form-group">
+            <label for="sensitiveContentInput">Nội dung chi tiết:</label>
+            <textarea
+              id="sensitiveContentInput"
+              name="sensitive_content"
+              rows="10"
+              required
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <fieldset class="policy-builder">
+            <legend>Định Nghĩa Chính Sách Truy Cập (CP-ABE)</legend>
+            <p style="font-size: 0.9em; color: #777; margin-bottom: 15px">
+              Chọn các thuộc tính để định nghĩa ai có thể giải mã nội dung chi
+              tiết ở trên.
+            </p>
+            <div id="policyAttributeGroupsContainer">
+              <!-- JavaScript sẽ tự động điền các nhóm thuộc tính -->
+            </div>
+            <div class="policy-category">
+              <label for="customAttributesInput"
+                >Thuộc tính bổ sung (VD:
+                <code>KEY:VALUE,OTHER:VAL</code>):</label
+              >
+              <input
+                type="text"
+                id="customAttributesInput"
+                name="custom_attributes"
+                placeholder="PROJECT_ID:XYZ, URGENCY:HIGH"
+              />
+            </div>
+            <div id="generatedPolicyPreviewContainer">
+              <strong>Chính sách sẽ được tạo:</strong>
+              <pre id="generatedPolicyPreview">
+(Chưa có điều kiện nào được chọn)</pre
+              >
+            </div>
+          </fieldset>
+        </div>
+
+        <div class="form-section">
+          <h3>Khóa Công Khai CP-ABE</h3>
+          <div class="form-group">
+            <label for="publicKeyFile"
+              >Tải lên file Public Key CP-ABE (`.bin` hoặc `.json`):</label
+            >
+            <input type="file" id="publicKeyFile" accept=".bin,.json" />
+            <span id="publicKeyStatus" class="file-upload-status"></span>
+          </div>
+        </div>
+
+        <button type="submit" id="submitButton">Mã Hóa và Gửi Dữ Liệu</button>
+      </form>
+      <div
+        id="submissionStatus"
+        class="message-area"
+        style="display: none"
+      ></div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-content">
+        <div class="spinner"></div>
+        <h3>Đang khởi tạo hệ thống mã hóa...</h3>
+        <p id="loadingStatus">Đang tải Pyodide và thư viện Charm-Crypto</p>
+      </div>
+    </div>
+
+    <style>
+      .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        z-index: 9999;
+        color: white;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      .loading-overlay.show {
+        display: flex;
+      }
+      .loading-content {
+        text-align: center;
+      }
+      .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #3498db;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    </style>
+
+    <script>
+      // --- DOM Elements ---
+      const ehrDataForm = document.getElementById("ehrDataForm");
+      const policyPreviewElement = document.getElementById(
+        "generatedPolicyPreview"
+      );
+      const customAttributesElement = document.getElementById(
+        "customAttributesInput"
+      );
+      const statusMessageElement = document.getElementById("submissionStatus");
+      const submitButton = document.getElementById("submitButton");
+      const policyAttributeGroupsContainer = document.getElementById(
+        "policyAttributeGroupsContainer"
+      );
+      const publicKeyFileInput = document.getElementById("publicKeyFile");
+      const publicKeyStatus = document.getElementById("publicKeyStatus");
+      const sensitiveContentInput = document.getElementById(
+        "sensitiveContentInput"
+      );
+
+      // --- Global State ---
+      let pyodide = null;
+      let abePublicKeyObject = null;
+
+      // Sửa URL API để match với URLs đã tạo
+      const UPLOAD_API_URL = "/api/ehr/upload/";
+
+      // --- Thuộc tính và Categories với ID mapping ---
+      const attributeIdMapping = {
+        "ROLE:DOCTOR": 1,
+        "ROLE:NURSE": 2,
+        "ROLE:SPECIALIST": 3,
+        "ROLE:PHARMACIST": 4,
+        "ROLE:LAB_TECHNICIAN": 5,
+        // "ROLE:ADMINISTRATOR": 6, // Không hiển thị role admin
+        "ROLE:RECEPTIONIST": 7,
+        "ROLE:PATIENT": 8,
+        "ROLE:RESEARCHER": 9,
+        "ROLE:INSURANCE_STAFF": 10,
+        "DEPARTMENT:CARDIOLOGY": 11,
+        "DEPARTMENT:ONCOLOGY": 12,
+        "DEPARTMENT:PEDIATRICS": 13,
+        "DEPARTMENT:SURGERY": 14,
+        "DEPARTMENT:RADIOLOGY": 15,
+        "DEPARTMENT:EMERGENCY": 16,
+        "DEPARTMENT:INTERNAL_MEDICINE": 17,
+        "DEPARTMENT:LABORATORY": 18,
+        "DEPARTMENT:PHARMACY": 19,
+        "INFO:MEDICAL_HISTORY": 20,
+        "INFO:LAB_RESULTS": 21,
+        "INFO:PRESCRIPTIONS": 22,
+        "INFO:IMAGING_REPORTS": 23,
+        "INFO:BILLING": 24,
+        "INFO:DEMOGRAPHICS": 25,
+        "ACTION:VIEW": 26,
+        "ACTION:EDIT": 27,
+        "ACTION:PRESCRIBE": 28,
+        "ACTION:ORDER_TEST": 29,
+        "CONTEXT:EMERGENCY_ACCESS": 30,
+        "CONTEXT:RESEARCH_ANONYMIZED": 31,
+        "PATIENT_RELATIONSHIP:TREATING_PHYSICIAN": 32,
+        "PATIENT_RELATIONSHIP:CONSULTING_PHYSICIAN": 33,
+        "ACCESS_LEVEL:SENSITIVE": 34,
+        "LOCATION:HOSPITAL_A": 35,
+        "LOCATION:CLINIC_B": 36,
+        "TIME_CONSTRAINT:ON_DUTY": 37,
+      };
+
+      const availableAttributes = Object.keys(attributeIdMapping);
+
+      const attributeCategoriesConfig = {
+        ROLE: "Vai trò người truy cập",
+        DEPARTMENT: "Chuyên khoa/Phòng ban người truy cập",
+        INFO: "Quyền truy cập loại thông tin",
+        ACTION: "Hành động được phép thực hiện",
+        CONTEXT: "Ngữ cảnh truy cập đặc biệt",
+        PATIENT_RELATIONSHIP: "Mối quan hệ với bệnh nhân",
+        ACCESS_LEVEL: "Mức độ truy cập của người xem",
+        LOCATION: "Địa điểm làm việc của người xem",
+        TIME_CONSTRAINT: "Điều kiện thời gian làm việc",
+      };
+
+      // --- Helper Functions ---
+      function displayStatus(message, type = "info") {
+        statusMessageElement.textContent = message;
+        statusMessageElement.className = `message-area ${type}`;
+        statusMessageElement.style.display = "block";
+      }
+
+      function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        try {
+          return window.btoa(binary);
+        } catch (error) {
+          // Fallback for binary data with invalid characters
+          console.warn("btoa failed, using alternative encoding");
+          const binaryString = Array.from(bytes, (byte) =>
+            String.fromCharCode(byte)
+          ).join("");
+          return btoa(unescape(encodeURIComponent(binaryString)));
+        }
+      }
+
+      // --- Policy UI Logic ---
+      function generatePolicyUI() {
+        const categories = {};
+
+        // Nhóm attributes theo category
+        availableAttributes.forEach((attr) => {
+          const [category, value] = attr.split(":");
+          if (!categories[category]) {
+            categories[category] = [];
+          }
+          categories[category].push(attr);
+        });
+
+        // Tạo UI cho từng category với radio buttons hoặc select
+        Object.keys(categories).forEach((categoryKey) => {
+          const categoryDiv = document.createElement("div");
+          categoryDiv.className = "policy-category";
+
+          const categoryLabel = document.createElement("label");
+          categoryLabel.textContent = `${
+            attributeCategoriesConfig[categoryKey] || categoryKey
+          } (chọn một hoặc nhiều):`;
+          categoryDiv.appendChild(categoryLabel);
+
+          // Tạo container cho các options
+          const optionsContainer = document.createElement("div");
+          optionsContainer.style.marginLeft = "20px";
+          optionsContainer.style.marginTop = "8px";
+
+          categories[categoryKey].forEach((attr) => {
+            const optionDiv = document.createElement("div");
+            optionDiv.className = "policy-option";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `attr_${attr.replace(/[:\s]/g, "_")}`;
+            checkbox.value = attr;
+            checkbox.name = `category_${categoryKey}`; // Group by category
+            checkbox.addEventListener("change", buildAndDisplayPolicyString);
+
+            const label = document.createElement("label");
+            label.htmlFor = checkbox.id;
+            label.textContent = attr.split(":")[1]; // Chỉ hiển thị phần sau dấu :
+            label.style.marginLeft = "5px";
+
+            optionDiv.appendChild(checkbox);
+            optionDiv.appendChild(label);
+            optionsContainer.appendChild(optionDiv);
+          });
+
+          categoryDiv.appendChild(optionsContainer);
+          policyAttributeGroupsContainer.appendChild(categoryDiv);
+        });
+      }
+
+      function buildAndDisplayPolicyString() {
+        // Nhóm các attributes đã chọn theo category
+        const selectedByCategory = {};
+
+        // Lấy các checkbox đã chọn và nhóm theo category
+        const checkboxes = policyAttributeGroupsContainer.querySelectorAll(
+          'input[type="checkbox"]:checked'
+        );
+        checkboxes.forEach((cb) => {
+          const attr = cb.value;
+          const category = attr.split(":")[0];
+          if (!selectedByCategory[category]) {
+            selectedByCategory[category] = [];
+          }
+          selectedByCategory[category].push(attr);
+        });
+
+        // Parse custom attributes
+        const customInput = customAttributesElement.value.trim();
+        if (customInput) {
+          const customAttrs = customInput
+            .split(",")
+            .map((attr) => attr.trim())
+            .filter((attr) => attr);
+          if (!selectedByCategory["CUSTOM"]) {
+            selectedByCategory["CUSTOM"] = [];
+          }
+          selectedByCategory["CUSTOM"].push(...customAttrs);
+        }
+
+        // Tạo policy string với logic OR trong category, AND giữa các category
+        const categoryPolicies = [];
+        const categoryPoliciesReadable = [];
+
+        Object.keys(selectedByCategory).forEach((category) => {
+          const attrs = selectedByCategory[category];
+          if (attrs.length > 0) {
+            // Convert attributes to IDs
+            const convertedIds = attrs.map((attr) => {
+              const id = attributeIdMapping[attr];
+              if (id !== undefined) {
+                return id;
+              } else {
+                // Custom attribute hash
+                let hash = 0;
+                for (let i = 0; i < attr.length; i++) {
+                  const char = attr.charCodeAt(i);
+                  hash = (hash << 5) - hash + char;
+                  hash = hash & hash;
+                }
+                return Math.abs(hash % 1000) + 1000;
+              }
+            });
+
+            // Tạo OR group cho category này
+            if (attrs.length === 1) {
+              categoryPolicies.push(convertedIds[0]);
+              categoryPoliciesReadable.push(attrs[0]);
+            } else {
+              categoryPolicies.push(`(${convertedIds.join(" or ")})`);
+              categoryPoliciesReadable.push(`(${attrs.join(" or ")})`);
+            }
+          }
+        });
+
+        // Combine categories with AND
+        let policyString = "";
+        let readablePolicy = "";
+
+        if (categoryPolicies.length > 0) {
+          policyString = categoryPolicies.join(" and ");
+          readablePolicy = categoryPoliciesReadable.join(" and ");
+
+          // Format policy display properly
+          policyPreviewElement.innerHTML = `<strong>Policy (readable):</strong>\n${readablePolicy}\n\n<strong>Policy (IDs):</strong>\n${policyString}`;
+        } else {
+          policyString = "";
+          policyPreviewElement.textContent =
+            "(Chưa có điều kiện nào được chọn)";
+        }
+
+        return categoryPolicies.length > 0 ? policyString : null;
+      }
+
+      // --- Pyodide and CP-ABE Initialization ---
+      async function initializePyodide() {
+        // Show loading overlay
+        const loadingOverlay = document.getElementById("loadingOverlay");
+        const loadingStatus = document.getElementById("loadingStatus");
+        loadingOverlay.classList.add("show");
+        
+        try {
+          loadingStatus.textContent = "Đang tải Pyodide...";
+          
+          // Load Pyodide (ẩn stdout/stderr logs)
+          pyodide = await loadPyodide({
+            stdout: () => {}, // Ẩn logs
+            stderr: () => {}, // Ẩn error logs
+          });
+
+          loadingStatus.textContent = "Đang tải micropip...";
+          await pyodide.loadPackage("micropip");
+          const micropip = pyodide.pyimport("micropip");
+
+          loadingStatus.textContent = "Đang cài đặt Charm-Crypto...";
+          // URL đến wheel của Charm-Crypto đã được build cho Pyodide
+          const charmWheelURL =
+            "https://quackusarle.github.io/charm_crypto_wheel_for_pyodide/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
+          await micropip.install(charmWheelURL);
+
+          loadingStatus.textContent = "Đang khởi tạo hệ thống CP-ABE...";
+          // Initialize CP-ABE system như trong medical_upload.js
+          await pyodide.runPythonAsync(`
+from charm.toolbox.pairinggroup import PairingGroup
+from charm.schemes.abenc.waters11 import Waters11
+
+group = PairingGroup('SS512')
+waters_abe = Waters11(group, uni_size=100)
+
+globals()['_waters11_abe_scheme'] = waters_abe
+globals()['_waters11_group'] = group
+        `);
+
+          // Test initialization
+          const testResult = await pyodide.runPythonAsync(`
+result = "SUCCESS"
+try:
+    _waters11_abe_scheme
+    _waters11_group
+except NameError as e:
+    result = f"FAILED: {str(e)}"
+except Exception as e:
+    result = f"ERROR: {str(e)}"
+result
+        `);
+
+          if (testResult !== "SUCCESS") {
+            throw new Error(`Lỗi khởi tạo Waters11: ${testResult}`);
+          }
+
+          // Ẩn loading overlay
+          loadingOverlay.classList.remove("show");
+          
+          displayStatus(
+            "Thư viện mã hóa đã sẵn sàng. Vui lòng tải lên Public Key.",
+            "success"
+          );
+          publicKeyFileInput.disabled = false;
+        } catch (error) {
+          // Ẩn loading overlay khi có lỗi
+          loadingOverlay.classList.remove("show");
+          
+          console.error("Lỗi khởi tạo Pyodide hoặc Charm:", error);
+          displayStatus(
+            `Lỗi khởi tạo thư viện mã hóa: ${error.message}. Trang sẽ hoạt động mà không có tính năng mã hóa.`,
+            "error"
+          );
+          // Cho phép submit mà không mã hóa để test
+          submitButton.disabled = false;
+        }
+      }
+
+      // --- Public Key Handling ---
+      publicKeyFileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) {
+          publicKeyStatus.textContent = "Chưa chọn file.";
+          abePublicKeyObject = null;
+          return;
+        }
+        if (!pyodide) {
+          displayStatus("Thư viện mã hóa chưa sẵn sàng.", "error");
+          abePublicKeyObject = null;
+          return;
+        }
+
+        publicKeyStatus.textContent = `Đang đọc file: ${file.name}...`;
+        try {
+          // Try both binary and JSON formats
+          let publicKeyData = null;
+
+          if (file.name.endsWith(".json")) {
+            // JSON format
+            const fileText = await file.text();
+            try {
+              publicKeyData = JSON.parse(fileText);
+              if (!publicKeyData || typeof publicKeyData !== "object") {
+                throw new Error("Public key JSON không hợp lệ");
+              }
+            } catch (parseError) {
+              throw new Error(`File JSON không hợp lệ: ${parseError.message}`);
+            }
+          } else {
+            // Binary format - deserialize using Charm-Crypto
+            const fileBuffer = await file.arrayBuffer();
+            const pkBytes = new Uint8Array(fileBuffer);
+
+
+
+            // Use Pyodide to deserialize binary public key
+            const result = await pyodide.runPythonAsync(`
+import base64
+import json
+from charm.core.engine.util import bytesToObject
+
+result_data = None
+error_info = None
+
+try:
+    # Convert JS bytes to Python bytes - more efficient method
+    pk_bytes_list = ${JSON.stringify(Array.from(pkBytes))}
+    pk_bytes = bytes(pk_bytes_list)
+
+    print(f"Received {len(pk_bytes)} bytes for public key deserialization")
+    print(f"First 20 bytes: {pk_bytes[:20].hex()}")
+
+    # Check if Charm group is available
+    if '_waters11_group' not in globals():
+        raise Exception("Waters11 group not initialized. Please reload Pyodide.")
+
+    group = _waters11_group
+    print("Using group:", group)
+
+    # Deserialize using Charm
+    pk_obj = bytesToObject(pk_bytes, group)
+    print(f"Deserialized object type: {type(pk_obj)}")
+    print(f"Deserialized object keys: {list(pk_obj.keys()) if hasattr(pk_obj, 'keys') else 'Not a dict'}")
+
+    # Store the deserialized PK object in global for direct use in encryption
+    globals()['_global_public_key_object'] = pk_obj
+
+    # Also create a JSON representation for verification only
+    pk_info = {
+        "keys": list(pk_obj.keys()),
+        "status": "loaded",
+        "type": "charm_pk_object"
+    }
+
+    result_data = pk_info
+    print(f"Successfully loaded public key with keys: {list(pk_obj.keys())}")
+    print("Public key stored in global '_global_public_key_object'")
+
+except Exception as e:
+    error_info = str(e)
+    print(f"Error deserializing public key: {e}")
+    import traceback
+    print(f"Traceback: {traceback.format_exc()}")
+
+# Return result - ensure we actually return the JSON string
+if result_data:
+    result = json.dumps(result_data)
+else:
+    result = json.dumps({"error": error_info or "Unknown error"})
+
+result
+`);
+
+            // Parse Python result
+
+            let parsedResult;
+            try {
+              parsedResult = JSON.parse(result);
+            } catch (parseError) {
+              console.error("JSON Parse Error Details:");
+              console.error("- Error message:", parseError.message);
+              console.error(
+                "- Raw result (first 200 chars):",
+                result ? result.substring(0, 200) : "null"
+              );
+              console.error(
+                "- Result as char codes:",
+                result
+                  ? Array.from(result.substring(0, 50)).map((c) =>
+                      c.charCodeAt(0)
+                    )
+                  : "null"
+              );
+              throw new Error(
+                `Lỗi parse kết quả từ Python: ${parseError.message}`
+              );
+            }
+
+            if (parsedResult.error) {
+              throw new Error(`Python error: ${parsedResult.error}`);
+            }
+
+            if (!parsedResult || typeof parsedResult !== "object") {
+              throw new Error("Kết quả deserialize không hợp lệ");
+            }
+
+            if (
+              parsedResult.status !== "loaded" ||
+              parsedResult.type !== "charm_pk_object"
+            ) {
+              throw new Error("Public key không được load đúng cách");
+            }
+
+            publicKeyData = parsedResult;
+          }
+
+          // Store the public key object for encryption
+          abePublicKeyObject = publicKeyData;
+
+          publicKeyStatus.textContent = `Đã tải Public Key: ${file.name}`;
+          publicKeyStatus.style.color = "green";
+          displayStatus(
+            "Public Key đã sẵn sàng. Bạn có thể nhập dữ liệu và chính sách.",
+            "info"
+          );
+        } catch (error) {
+          console.error("Lỗi xử lý Public Key:", error);
+          console.error("Error details:", error);
+
+          
+
+          publicKeyStatus.textContent = `Lỗi: ${error.message}. Kiểm tra định dạng file hoặc thử file JSON.`;
+          publicKeyStatus.style.color = "red";
+          abePublicKeyObject = null;
+
+          // Suggest alternatives
+          displayStatus(
+            `Lỗi xử lý public key: ${error.message}. Vui lòng thử file JSON format hoặc kiểm tra file binary có đúng định dạng Charm-Crypto không.`,
+            "error"
+          );
+        }
+      });
+
+      // --- Encryption Logic (Client-Side) ---
+      async function encryptSensitiveContent(content, policyString, pkObject) {
+        // Validate encryption inputs
+
+        if (!pyodide) {
+          console.error("pyodide is not available:", pyodide);
+          throw new Error("Hệ thống Pyodide chưa được khởi tạo đúng cách.");
+        }
+
+        if (!pkObject) {
+          console.error("pkObject is not available:", pkObject);
+          throw new Error("Thiếu Public Key. Vui lòng tải Public Key trước.");
+        }
+
+        // 1. Tạo khóa AES ngẫu nhiên bằng Web Crypto API
+        const aesKey = await crypto.subtle.generateKey(
+          { name: "AES-GCM", length: 256 },
+          true,
+          ["encrypt", "decrypt"]
+        );
+        const aesKeyRaw = await crypto.subtle.exportKey("raw", aesKey);
+
+        // 2. Convert AES key to hex string like medical_upload.js
+        const aesKeyHex = arrayBufferToHexString(aesKeyRaw);
+
+        // 3. Use the encryptAESKeyWithCPABE logic from medical_upload.js
+
+        let result;
+        try {
+          result = await pyodide.runPythonAsync(`
+from charm.toolbox.pairinggroup import GT, G1, G2, ZR
+import base64
+import json
+import hashlib
+
+print("Python CP-ABE encryption started...")
+final_result = None
+try:
+    # Check if objects exist
+    print("Checking for stored objects...")
+    if '_waters11_abe_scheme' not in globals():
+        print("ERROR: _waters11_abe_scheme not found in globals!")
+        raise Exception("Waters11 ABE scheme not initialized")
+    if '_waters11_group' not in globals():
+        print("ERROR: _waters11_group not found in globals!")
+        raise Exception("Pairing group not initialized")
+
+    # Use the stored objects
+    waters_abe = _waters11_abe_scheme
+    group = _waters11_group
+    print("✓ Using stored Waters11 ABE scheme and pairing group")
+
+    # Use the stored public key object directly (no more reconstruction needed)
+    if '_global_public_key_object' not in globals():
+        print("ERROR: _global_public_key_object not found in globals!")
+        raise Exception("Public key object not loaded")
+
+    pk = _global_public_key_object  # This is the actual Charm PK object
+    print(f"✓ Using stored PK object with keys: {list(pk.keys())}")
+
+    # Convert AES key hex to bytes
+    aes_key_bytes = bytes.fromhex("${aesKeyHex}")
+
+    # Create a consistent seed from the AES key using SHA256
+    key_hash = hashlib.sha256(aes_key_bytes).digest()
+    seed = int.from_bytes(key_hash[:4], byteorder='big')
+
+    # Create GT message from the seed
+    base_gt = group.pair_prod(pk['g1'], pk['g1'])
+    gt_message = base_gt ** group.init(ZR, seed)
+
+    # Calculate the key that will be used for Web Crypto
+    web_crypto_key_bytes_for_data = hashlib.sha256(group.serialize(gt_message)).digest()
+    web_crypto_key_base64_for_data = base64.b64encode(web_crypto_key_bytes_for_data).decode('utf-8')
+
+    # Use the policy string with integer IDs
+    policy_str = "${policyString}"
+
+    # Encrypt the GT message with CP-ABE
+    print("Starting CP-ABE encryption...")
+    ciphertext = waters_abe.encrypt(pk, gt_message, policy_str)
+    print("✓ CP-ABE encryption completed")
+    print(f"✓ Ciphertext keys: {list(ciphertext.keys())}")
+
+    # Serialize ciphertext components separately to avoid BinNode serialization issues
+    from charm.core.engine.util import objectToBytes
+    
+    # Create a serializable version of ciphertext without policy tree
+    serializable_ct = {}
+    for key, value in ciphertext.items():
+        if key == 'policy':
+            # Convert policy to string representation instead of BinNode
+            serializable_ct[key] = str(value)
+        else:
+            # Keep other components as-is (they are serializable)
+            serializable_ct[key] = value
+    
+    print(f"✓ Serializable ciphertext keys: {list(serializable_ct.keys())}")
+    
+    # Now serialize the modified ciphertext
+    serialized_ciphertext_bytes = objectToBytes(serializable_ct, group)
+    encrypted_kek_final_b64 = base64.b64encode(serialized_ciphertext_bytes).decode('utf-8')
+    print(f"✓ Ciphertext serialized to {len(encrypted_kek_final_b64)} chars")
+
+    # Return both encrypted KEK and derived key (theo analysis)
+    result = {
+        "abe_ciphertext_bundle_b64": encrypted_kek_final_b64,
+        "web_crypto_aes_key_base64": web_crypto_key_base64_for_data
+    }
+
+except Exception as e:
+    print(f"CP-ABE encryption failed: {e}")
+    import traceback
+    print(f"Traceback: {traceback.format_exc()}")
+    result = None
+
+# Serialize to JSON string for JavaScript
+json.dumps(result)
+        `);
+          console.log("Python execution completed");
+        } catch (pythonError) {
+          console.error("Python execution failed:", pythonError);
+          console.error("Python error details:", pythonError.message);
+          throw new Error(
+            `Lỗi trong quá trình mã hóa Python: ${pythonError.message}`
+          );
+        }
+
+        console.log("Python result received, type:", typeof result);
+        console.log("Python result length:", result ? result.length : "null");
+
+        // Parse result from Python
+        let parsedResult;
+        try {
+          parsedResult = JSON.parse(result);
+        } catch (e) {
+          throw new Error("Lỗi định dạng kết quả từ Python");
+        }
+
+        if (
+          !parsedResult ||
+          !parsedResult.abe_ciphertext_bundle_b64 ||
+          !parsedResult.web_crypto_aes_key_base64
+        ) {
+          console.error("Invalid parsed result:", parsedResult);
+          throw new Error("Lỗi mã hóa CP-ABE.");
+        }
+
+        // 4. Import derived key for data encryption
+        const derivedKeyBytes = base64ToArrayBuffer(
+          parsedResult.web_crypto_aes_key_base64
+        );
+        const derivedAesKey = await crypto.subtle.importKey(
+          "raw",
+          derivedKeyBytes,
+          { name: "AES-GCM" },
+          false,
+          ["encrypt"]
+        );
+
+        // 5. Encrypt content with derived key
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encodedContent = new TextEncoder().encode(content);
+        const encryptedContentBuffer = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv },
+          derivedAesKey,
+          encodedContent
+        );
+
+        return {
+          encryptedKekBase64: parsedResult.abe_ciphertext_bundle_b64, // Đây là chuỗi base64 duy nhất
+          ivBase64: arrayBufferToBase64(iv),
+          encryptedDataAesBase64: arrayBufferToBase64(encryptedContentBuffer),
+        };
+      }
+
+      // Helper function like medical_upload.js
+      function arrayBufferToHexString(buffer) {
+        return Array.from(new Uint8Array(buffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      function base64ToArrayBuffer(base64) {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+      }
+
+      // Safe base64 encoding function for text with Unicode characters
+      function safeBase64Encode(text) {
+        try {
+          // Method 1: Standard encoding for ASCII
+          return btoa(text);
+        } catch (error) {
+          try {
+            // Method 2: UTF-8 encoding for Unicode
+            return btoa(unescape(encodeURIComponent(text)));
+          } catch (error2) {
+            // Method 3: TextEncoder fallback
+            console.warn("Using TextEncoder fallback for base64 encoding");
+            const encoder = new TextEncoder();
+            const encodedData = encoder.encode(text);
+            return arrayBufferToBase64(encodedData.buffer);
+          }
+        }
+      }
+
+      // --- Form Submit Handler ---
+      ehrDataForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Đang xử lý...";
+        displayStatus("Đang chuẩn bị dữ liệu...", "info");
+
+        const patientId = document.getElementById("patientIdInput").value;
+        const description = document.getElementById(
+          "documentDescriptionInput"
+        ).value;
+        const dataType = document.getElementById("dataTypeSelect").value;
+        const policyString = buildAndDisplayPolicyString();
+        const sensitiveContent = sensitiveContentInput.value;
+
+        if (!policyString) {
+          displayStatus(
+            "Vui lòng chọn ít nhất một thuộc tính cho chính sách truy cập.",
+            "error"
+          );
+          submitButton.disabled = false;
+          submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
+          return;
+        }
+        if (!sensitiveContent) {
+          displayStatus("Vui lòng nhập nội dung chi tiết cần mã hóa.", "error");
+          submitButton.disabled = false;
+          submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
+          return;
+        }
+
+        try {
+          let payloadToServer;
+
+          if (abePublicKeyObject && pyodide) {
+            // Có thể mã hóa
+            displayStatus("Đang mã hóa nội dung chi tiết...", "info");
+            console.log("Starting encryption process...");
+            console.log(
+              "abePublicKeyObject keys:",
+              Object.keys(abePublicKeyObject || {})
+            );
+            console.log("pyodide version:", pyodide.version);
+            const encryptedBundle = await encryptSensitiveContent(
+              sensitiveContent,
+              policyString,
+              abePublicKeyObject
+            );
+
+            payloadToServer = {
+              patient_id: patientId,
+              description: description,
+              data_type: dataType,
+              cpabe_policy_applied: policyString,
+              encrypted_kek_b64: encryptedBundle.encryptedKekBase64,
+              aes_iv_b64: encryptedBundle.ivBase64,
+              encrypted_main_content_b64:
+                encryptedBundle.encryptedDataAesBase64,
+            };
+          } else {
+            // Test mode - gửi dữ liệu dummy
+            displayStatus("Chế độ test - gửi dữ liệu không mã hóa...", "info");
+
+            // Safe encoding for Vietnamese text
+            const dummyBase64 = safeBase64Encode(sensitiveContent);
+
+            payloadToServer = {
+              patient_id: patientId,
+              description: description,
+              data_type: dataType,
+              cpabe_policy_applied: policyString,
+              encrypted_kek_b64: "dummy_kek_" + dummyBase64,
+              aes_iv_b64: "dummy_iv_" + btoa("test_iv"),
+              encrypted_main_content_b64: dummyBase64,
+            };
+          }
+
+          displayStatus("Đang gửi lên server...", "info");
+
+          // Lấy token từ localStorage hoặc cookie
+          const accessToken =
+            localStorage.getItem("mainServer_accessToken") ||
+            localStorage.getItem("access_token") ||
+            "dummy_token_for_test";
+
+          const response = await fetch(UPLOAD_API_URL, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payloadToServer),
+          });
+
+          const responseData = await response.json();
+
+          if (response.ok) {
+            displayStatus(
+              `Gửi dữ liệu thành công! ID: ${responseData.entry_id || "N/A"}.`,
+              "success"
+            );
+            ehrDataForm.reset();
+            buildAndDisplayPolicyString();
+          } else {
+            // Handle specific error cases
+            let errorMessage =
+              responseData.error || responseData.detail || response.statusText;
+
+            if (response.status === 401) {
+              errorMessage =
+                "Token đã hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại từ Auth Center.";
+            } else if (response.status === 403) {
+              errorMessage =
+                "Không có quyền truy cập. Kiểm tra lại quyền của bạn.";
+            }
+
+            displayStatus(
+              `Lỗi từ server (${response.status}): ${errorMessage}`,
+              "error"
+            );
+          }
+        } catch (error) {
+          console.error("Lỗi trong quá trình xử lý:", error);
+          console.error("Error stack:", error.stack);
+          console.error("Error name:", error.name);
+
+          let errorMessage = error.message || "Vui lòng thử lại.";
+          if (error.name === "DOMException") {
+            errorMessage = `Lỗi encoding dữ liệu: ${errorMessage}. Vui lòng kiểm tra ký tự đặc biệt trong nội dung.`;
+          }
+
+          displayStatus(`Lỗi: ${errorMessage}`, "error");
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
+        }
+      });
+
+      // --- Custom Attributes Event ---
+      customAttributesElement.addEventListener(
+        "input",
+        buildAndDisplayPolicyString
+      );
+
+      // --- Token Validation ---
+      async function checkTokenValidity() {
+        const accessToken =
+          localStorage.getItem("mainServer_accessToken") ||
+          localStorage.getItem("access_token");
+
+        if (!accessToken || accessToken === "dummy_token_for_test") {
+          displayStatus(
+            "Chưa có token hợp lệ. Vui lòng đăng nhập từ Auth Center trước.",
+            "warning"
+          );
+          return false;
+        }
+
+        try {
+          const response = await fetch("/api/auth/test/", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            displayStatus(
+              `Token hợp lệ. Đã xác thực user: ${data.user_info.username}`,
+              "success"
+            );
+            return true;
+          } else {
+            const errorData = await response.json();
+            displayStatus(
+              `Token không hợp lệ: ${
+                errorData.detail || "Unknown error"
+              }. Vui lòng đăng nhập lại.`,
+              "error"
+            );
+            return false;
+          }
+        } catch (error) {
+          console.error("Error checking token validity:", error);
+          displayStatus("Lỗi kiểm tra token. Vui lòng thử lại.", "error");
+          return false;
+        }
+      }
+
+      // --- Initial Page Load ---
+      document.addEventListener("DOMContentLoaded", async function () {
+
+
+        generatePolicyUI();
+        buildAndDisplayPolicyString();
+
+        // Enable button cho test mode - không cần đợi Pyodide
+        submitButton.disabled = false;
+        displayStatus("Trang đã sẵn sàng. Đang kiểm tra token...", "info");
+
+        // Check token validity (commented out for testing)
+        // await checkTokenValidity();
+
+        publicKeyFileInput.disabled = true;
+        await initializePyodide();
+      });
+    </script>
+  </body>
+</html>
