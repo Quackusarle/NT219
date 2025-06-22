@@ -22,7 +22,6 @@ class HomeView(TemplateView):
         if self.request.user.is_authenticated:
             context['user_attributes'] = UserAttribute.objects.filter(user=self.request.user)
             context['user_data_count'] = MedicalData.objects.filter(owner_user=self.request.user).count()
-            # Thêm flag để check user có attributes hay không
             context['has_attributes'] = UserAttribute.objects.filter(user=self.request.user).exists()
         return context
 
@@ -141,7 +140,7 @@ def handle_user_login(sender, request, user, **kwargs):
         
     except Exception as e:
         print(f"Error generating ABE secret key for user {user.email}: {e}")
-        # Không raise exception để không ảnh hưởng đến login process
+        
 
 @login_required
 @require_http_methods(["GET"])
@@ -185,7 +184,6 @@ def get_session_secret_key(request):
             'message': 'Error generating secret key'
         }, status=500)
 
-# THÊM MỚI: View và API endpoints cho medical record upload
 
 @requires_doctor_role()
 def medical_upload_view(request):

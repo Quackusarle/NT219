@@ -15,3 +15,5 @@ INSERT INTO backend_attribute (name, description, created_at) VALUES
 ('md', 'Tiến sĩ Y khoa', NOW()),
 ('health_science_centre', 'Trung tâm Khoa học Sức khỏe', NOW()),
 ('medicine_institute', 'Viện Y học', NOW()),
+
+

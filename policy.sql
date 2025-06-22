@@ -17,3 +17,7 @@ INSERT INTO backend_accesspolicy (name, policy_template, description, created_at
  '(researcher OR md) AND (health_science_centre OR medicine_institute)',
  'Nhà nghiên cứu tại các viện nghiên cứu',
  NOW(), NOW()),
+
+
+
+ 

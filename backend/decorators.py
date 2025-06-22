@@ -52,7 +52,7 @@ def api_requires_attributes():
 
 def requires_doctor_role(redirect_url='home'):
     """
-    Decorator yêu cầu user phải có attribute 'doctor' hoặc 'bac_si' để truy cập.
+    Decorator yêu cầu user phải có attribute 'doctor' để truy cập.
     """
     def decorator(view_func):
         @wraps(view_func)
@@ -61,7 +61,7 @@ def requires_doctor_role(redirect_url='home'):
             # Kiểm tra user có attribute doctor không
             is_doctor = UserAttribute.objects.filter(
                 user=request.user,
-                attribute__name__in=['doctor', 'bac_si', 'bác sĩ']
+                attribute__name__in=['doctor']
             ).exists()
             
             if not is_doctor:
@@ -86,7 +86,7 @@ def api_requires_doctor_role():
             # Kiểm tra user có attribute doctor không
             is_doctor = UserAttribute.objects.filter(
                 user=request.user,
-                attribute__name__in=['doctor', 'bac_si', 'bác sĩ']
+                attribute__name__in=['doctor']
             ).exists()
             
             if not is_doctor:

@@ -135,7 +135,7 @@ from charm.toolbox.pairinggroup import PairingGroup
 from charm.schemes.abenc.waters11 import Waters11
 import base64
 
-group = PairingGroup('SS512')
+group = PairingGroup('BN254')
 waters_abe = Waters11(group, uni_size=11)
 
 globals()['_waters11_abe_scheme'] = waters_abe

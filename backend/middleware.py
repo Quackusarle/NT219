@@ -25,7 +25,6 @@ class AttributeAccessMiddleware:
             '/accounts/',  # tất cả auth URLs
             '/admin/',     # admin interface
             '/static/',    # static files
-            '/media/',     # media files
         ]
 
     def __call__(self, request):
