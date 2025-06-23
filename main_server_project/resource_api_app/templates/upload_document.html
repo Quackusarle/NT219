@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 
 <html lang="vi">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nhập và Mã Hóa Dữ Liệu Y Tế</title>
     <script src="https://cdn.jsdelivr.net/pyodide/v0.27.7/full/pyodide.js"></script>
     <style>
-      /* (Sử dụng CSS tương tự như trang upload trước đó, có thể tùy chỉnh) */
+        /* (Sử dụng CSS tương tự như trang upload trước đó, có thể tùy chỉnh) */
       body {
         font-family: "Segoe UI", sans-serif;
         margin: 0;
@@ -60,8 +60,8 @@
         border-radius: 5px;
         box-sizing: border-box;
         font-size: 1em;
-        transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-      }
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
       .form-group input[type="text"]:focus,
       .form-group input[type="file"]:focus,
       .form-group textarea:focus,
@@ -69,7 +69,7 @@
         border-color: #80bdff;
         outline: 0;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-      }
+        }
       .form-group textarea {
         resize: vertical;
         min-height: 150px;
@@ -132,7 +132,7 @@
         display: block;
         margin-bottom: 10px;
       }
-      #generatedPolicyPreview {
+        #generatedPolicyPreview {
         margin: 0;
         padding: 12px;
         background-color: #ffffff;
@@ -146,8 +146,8 @@
         font-size: 0.85em;
         line-height: 1.4;
         overflow-x: auto;
-      }
-      button {
+        }
+        button {
         display: inline-block;
         padding: 10px 20px;
         background-color: #007bff;
@@ -160,7 +160,7 @@
         transition: background-color 0.3s ease;
         margin-right: 10px;
         margin-top: 10px;
-      }
+        }
       button:hover {
         background-color: #0056b3;
       }
@@ -201,64 +201,64 @@
         color: #28a745;
       }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="container">
-      <h2>Nhập và Mã Hóa Dữ Liệu Y Tế</h2>
-      <form id="ehrDataForm">
-        <div class="form-section">
-          <h3>Thông Tin Cơ Bản (Không mã hóa)</h3>
-          <div class="form-group">
-            <label for="patientIdInput">Mã Bệnh Nhân:</label>
+        <h2>Nhập và Mã Hóa Dữ Liệu Y Tế</h2>
+        <form id="ehrDataForm">
+            <div class="form-section">
+                <h3>Thông Tin Cơ Bản (Không mã hóa)</h3>
+                <div class="form-group">
+                    <label for="patientIdInput">Mã Bệnh Nhân:</label>
             <input type="text" id="patientIdInput" name="patient_id" required />
-          </div>
-          <div class="form-group">
-            <label for="documentDescriptionInput">Mô Tả Chung:</label>
+                </div>
+                <div class="form-group">
+                    <label for="documentDescriptionInput">Mô Tả Chung:</label>
             <input
               type="text"
               id="documentDescriptionInput"
               name="description"
               required
             />
-          </div>
-          <div class="form-group">
-            <label for="dataTypeSelect">Loại Dữ Liệu:</label>
-            <select id="dataTypeSelect" name="data_type" required>
-              <option value="">-- Vui lòng chọn --</option>
-              <option value="CONSULTATION_NOTE">Ghi chú khám bệnh</option>
-              <option value="LAB_RESULT_SUMMARY">Tóm tắt KQ Xét nghiệm</option>
-              <option value="TREATMENT_PLAN">Kế hoạch điều trị</option>
+                </div>
+                <div class="form-group">
+                    <label for="dataTypeSelect">Loại Dữ Liệu:</label>
+                    <select id="dataTypeSelect" name="data_type" required>
+                        <option value="">-- Vui lòng chọn --</option>
+                        <option value="CONSULTATION_NOTE">Ghi chú khám bệnh</option>
+                        <option value="LAB_RESULT_SUMMARY">Tóm tắt KQ Xét nghiệm</option>
+                        <option value="TREATMENT_PLAN">Kế hoạch điều trị</option>
               <option value="OTHER_SENSITIVE_NOTE">
                 Ghi chú nhạy cảm khác
               </option>
-            </select>
-          </div>
-        </div>
+                    </select>
+                </div>
+            </div>
 
-        <div class="form-section">
-          <h3>Nội Dung Chi Tiết (Sẽ được mã hóa)</h3>
-          <div class="form-group">
-            <label for="sensitiveContentInput">Nội dung chi tiết:</label>
+            <div class="form-section">
+                <h3>Nội Dung Chi Tiết (Sẽ được mã hóa)</h3>
+                <div class="form-group">
+                    <label for="sensitiveContentInput">Nội dung chi tiết:</label>
             <textarea
               id="sensitiveContentInput"
               name="sensitive_content"
               rows="10"
               required
             ></textarea>
-          </div>
-        </div>
+                </div>
+            </div>
 
-        <div class="form-section">
-          <fieldset class="policy-builder">
-            <legend>Định Nghĩa Chính Sách Truy Cập (CP-ABE)</legend>
+            <div class="form-section">
+                <fieldset class="policy-builder">
+                    <legend>Định Nghĩa Chính Sách Truy Cập (CP-ABE)</legend>
             <p style="font-size: 0.9em; color: #777; margin-bottom: 15px">
               Chọn các thuộc tính để định nghĩa ai có thể giải mã nội dung chi
               tiết ở trên.
-            </p>
-            <div id="policyAttributeGroupsContainer">
-              <!-- JavaScript sẽ tự động điền các nhóm thuộc tính -->
-            </div>
-            <div class="policy-category">
+                    </p>
+                    <div id="policyAttributeGroupsContainer">
+                        <!-- JavaScript sẽ tự động điền các nhóm thuộc tính -->
+                    </div>
+                    <div class="policy-category">
               <label for="customAttributesInput"
                 >Thuộc tính bổ sung (VD:
                 <code>KEY:VALUE,OTHER:VAL</code>):</label
@@ -269,29 +269,29 @@
                 name="custom_attributes"
                 placeholder="PROJECT_ID:XYZ, URGENCY:HIGH"
               />
-            </div>
-            <div id="generatedPolicyPreviewContainer">
-              <strong>Chính sách sẽ được tạo:</strong>
+                    </div>
+                    <div id="generatedPolicyPreviewContainer">
+                        <strong>Chính sách sẽ được tạo:</strong>
               <pre id="generatedPolicyPreview">
 (Chưa có điều kiện nào được chọn)</pre
               >
+                    </div>
+                </fieldset>
             </div>
-          </fieldset>
-        </div>
 
-        <div class="form-section">
-          <h3>Khóa Công Khai CP-ABE</h3>
-          <div class="form-group">
+            <div class="form-section">
+                <h3>Khóa Công Khai CP-ABE</h3>
+                <div class="form-group">
             <label for="publicKeyFile"
               >Tải lên file Public Key CP-ABE (`.bin` hoặc `.json`):</label
             >
             <input type="file" id="publicKeyFile" accept=".bin,.json" />
-            <span id="publicKeyStatus" class="file-upload-status"></span>
-          </div>
-        </div>
+                    <span id="publicKeyStatus" class="file-upload-status"></span>
+                </div>
+            </div>
 
         <button type="submit" id="submitButton">Mã Hóa và Gửi Dữ Liệu</button>
-      </form>
+        </form>
       <div
         id="submissionStatus"
         class="message-area"
@@ -345,7 +345,7 @@
     </style>
 
     <script>
-      // --- DOM Elements ---
+        // --- DOM Elements ---
       const ehrDataForm = document.getElementById("ehrDataForm");
       const policyPreviewElement = document.getElementById(
         "generatedPolicyPreview"
@@ -364,8 +364,8 @@
         "sensitiveContentInput"
       );
 
-      // --- Global State ---
-      let pyodide = null;
+        // --- Global State ---
+        let pyodide = null;
       let abePublicKeyObject = null;
 
       // Sửa URL API để match với URLs đã tạo
@@ -424,23 +424,23 @@
         ACCESS_LEVEL: "Mức độ truy cập của người xem",
         LOCATION: "Địa điểm làm việc của người xem",
         TIME_CONSTRAINT: "Điều kiện thời gian làm việc",
-      };
+        };
 
-      // --- Helper Functions ---
+        // --- Helper Functions ---
       function displayStatus(message, type = "info") {
-        statusMessageElement.textContent = message;
-        statusMessageElement.className = `message-area ${type}`;
+            statusMessageElement.textContent = message;
+            statusMessageElement.className = `message-area ${type}`;
         statusMessageElement.style.display = "block";
-      }
+        }
 
-      function arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
         let binary = "";
         for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
+                binary += String.fromCharCode(bytes[i]);
+            }
         try {
-          return window.btoa(binary);
+            return window.btoa(binary);
         } catch (error) {
           // Fallback for binary data with invalid characters
           console.warn("btoa failed, using alternative encoding");
@@ -449,7 +449,7 @@
           ).join("");
           return btoa(unescape(encodeURIComponent(binaryString)));
         }
-      }
+        }
 
       // --- Policy UI Logic ---
       function generatePolicyUI() {
@@ -590,8 +590,8 @@
         return categoryPolicies.length > 0 ? policyString : null;
       }
 
-      // --- Pyodide and CP-ABE Initialization ---
-      async function initializePyodide() {
+        // --- Pyodide and CP-ABE Initialization ---
+        async function initializePyodide() {
         // Show loading overlay
         const loadingOverlay = document.getElementById("loadingOverlay");
         const loadingStatus = document.getElementById("loadingStatus");
@@ -601,20 +601,20 @@
           loadingStatus.textContent = "Đang tải Pyodide...";
           
           // Load Pyodide (ẩn stdout/stderr logs)
-          pyodide = await loadPyodide({
+                pyodide = await loadPyodide({
             stdout: () => {}, // Ẩn logs
             stderr: () => {}, // Ẩn error logs
-          });
+                });
 
           loadingStatus.textContent = "Đang tải micropip...";
-          await pyodide.loadPackage("micropip");
-          const micropip = pyodide.pyimport("micropip");
+                await pyodide.loadPackage("micropip");
+                const micropip = pyodide.pyimport("micropip");
 
           loadingStatus.textContent = "Đang cài đặt Charm-Crypto...";
-          // URL đến wheel của Charm-Crypto đã được build cho Pyodide
+                // URL đến wheel của Charm-Crypto đã được build cho Pyodide
           const charmWheelURL =
             "https://quackusarle.github.io/charm_crypto_wheel_for_pyodide/charm_crypto-0.50-cp312-cp312-pyodide_2024_0_wasm32.whl";
-          await micropip.install(charmWheelURL);
+                await micropip.install(charmWheelURL);
 
           loadingStatus.textContent = "Đang khởi tạo hệ thống CP-ABE...";
           // Initialize CP-ABE system như trong medical_upload.js
@@ -653,37 +653,37 @@ result
             "Thư viện mã hóa đã sẵn sàng. Vui lòng tải lên Public Key.",
             "success"
           );
-          publicKeyFileInput.disabled = false;
-        } catch (error) {
+                publicKeyFileInput.disabled = false;
+            } catch (error) {
           // Ẩn loading overlay khi có lỗi
           loadingOverlay.classList.remove("show");
           
-          console.error("Lỗi khởi tạo Pyodide hoặc Charm:", error);
+                console.error("Lỗi khởi tạo Pyodide hoặc Charm:", error);
           displayStatus(
             `Lỗi khởi tạo thư viện mã hóa: ${error.message}. Trang sẽ hoạt động mà không có tính năng mã hóa.`,
             "error"
           );
           // Cho phép submit mà không mã hóa để test
           submitButton.disabled = false;
+            }
         }
-      }
 
-      // --- Public Key Handling ---
+        // --- Public Key Handling ---
       publicKeyFileInput.addEventListener("change", async (event) => {
-        const file = event.target.files[0];
-        if (!file) {
-          publicKeyStatus.textContent = "Chưa chọn file.";
-          abePublicKeyObject = null;
-          return;
-        }
+            const file = event.target.files[0];
+            if (!file) {
+                publicKeyStatus.textContent = "Chưa chọn file.";
+                abePublicKeyObject = null;
+                return;
+            }
         if (!pyodide) {
-          displayStatus("Thư viện mã hóa chưa sẵn sàng.", "error");
-          abePublicKeyObject = null;
-          return;
-        }
+                displayStatus("Thư viện mã hóa chưa sẵn sàng.", "error");
+                abePublicKeyObject = null;
+                return;
+            }
 
-        publicKeyStatus.textContent = `Đang đọc file: ${file.name}...`;
-        try {
+            publicKeyStatus.textContent = `Đang đọc file: ${file.name}...`;
+            try {
           // Try both binary and JSON formats
           let publicKeyData = null;
 
@@ -700,7 +700,7 @@ result
             }
           } else {
             // Binary format - deserialize using Charm-Crypto
-            const fileBuffer = await file.arrayBuffer();
+                const fileBuffer = await file.arrayBuffer();
             const pkBytes = new Uint8Array(fileBuffer);
 
 
@@ -709,7 +709,7 @@ result
             const result = await pyodide.runPythonAsync(`
 import base64
 import json
-from charm.core.engine.util import bytesToObject
+                    from charm.core.engine.util import bytesToObject
 
 result_data = None
 error_info = None
@@ -809,32 +809,32 @@ result
           // Store the public key object for encryption
           abePublicKeyObject = publicKeyData;
 
-          publicKeyStatus.textContent = `Đã tải Public Key: ${file.name}`;
-          publicKeyStatus.style.color = "green";
+                    publicKeyStatus.textContent = `Đã tải Public Key: ${file.name}`;
+                    publicKeyStatus.style.color = "green";
           displayStatus(
             "Public Key đã sẵn sàng. Bạn có thể nhập dữ liệu và chính sách.",
             "info"
           );
-        } catch (error) {
-          console.error("Lỗi xử lý Public Key:", error);
+            } catch (error) {
+                console.error("Lỗi xử lý Public Key:", error);
           console.error("Error details:", error);
 
           
 
           publicKeyStatus.textContent = `Lỗi: ${error.message}. Kiểm tra định dạng file hoặc thử file JSON.`;
-          publicKeyStatus.style.color = "red";
-          abePublicKeyObject = null;
+                publicKeyStatus.style.color = "red";
+                abePublicKeyObject = null;
 
           // Suggest alternatives
           displayStatus(
             `Lỗi xử lý public key: ${error.message}. Vui lòng thử file JSON format hoặc kiểm tra file binary có đúng định dạng Charm-Crypto không.`,
             "error"
           );
-        }
-      });
+            }
+        });
 
-      // --- Encryption Logic (Client-Side) ---
-      async function encryptSensitiveContent(content, policyString, pkObject) {
+        // --- Encryption Logic (Client-Side) ---
+        async function encryptSensitiveContent(content, policyString, pkObject) {
         // Validate encryption inputs
 
         if (!pyodide) {
@@ -845,14 +845,14 @@ result
         if (!pkObject) {
           console.error("pkObject is not available:", pkObject);
           throw new Error("Thiếu Public Key. Vui lòng tải Public Key trước.");
-        }
+            }
 
-        // 1. Tạo khóa AES ngẫu nhiên bằng Web Crypto API
-        const aesKey = await crypto.subtle.generateKey(
-          { name: "AES-GCM", length: 256 },
+            // 1. Tạo khóa AES ngẫu nhiên bằng Web Crypto API
+            const aesKey = await crypto.subtle.generateKey(
+                { name: "AES-GCM", length: 256 },
           true,
-          ["encrypt", "decrypt"]
-        );
+                ["encrypt", "decrypt"]
+            );
         const aesKeyRaw = await crypto.subtle.exportKey("raw", aesKey);
 
         // 2. Convert AES key to hex string like medical_upload.js
@@ -918,7 +918,7 @@ try:
     print(f"✓ Ciphertext keys: {list(ciphertext.keys())}")
 
     # Serialize ciphertext components separately to avoid BinNode serialization issues
-    from charm.core.engine.util import objectToBytes
+                from charm.core.engine.util import objectToBytes
     
     # Create a serializable version of ciphertext without policy tree
     serializable_ct = {}
@@ -995,14 +995,14 @@ json.dumps(result)
 
         // 5. Encrypt content with derived key
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encodedContent = new TextEncoder().encode(content);
+            const encodedContent = new TextEncoder().encode(content);
         const encryptedContentBuffer = await crypto.subtle.encrypt(
-          { name: "AES-GCM", iv: iv },
+                { name: "AES-GCM", iv: iv },
           derivedAesKey,
-          encodedContent
-        );
+                encodedContent
+            );
 
-        return {
+            return {
           encryptedKekBase64: parsedResult.abe_ciphertext_bundle_b64, // Đây là chuỗi base64 duy nhất
           ivBase64: arrayBufferToBase64(iv),
           encryptedDataAesBase64: arrayBufferToBase64(encryptedContentBuffer),
@@ -1042,13 +1042,13 @@ json.dumps(result)
             return arrayBufferToBase64(encodedData.buffer);
           }
         }
-      }
+        }
 
-      // --- Form Submit Handler ---
+        // --- Form Submit Handler ---
       ehrDataForm.addEventListener("submit", async function (event) {
-        event.preventDefault();
+            event.preventDefault();
 
-        submitButton.disabled = true;
+            submitButton.disabled = true;
         submitButton.textContent = "Đang xử lý...";
         displayStatus("Đang chuẩn bị dữ liệu...", "info");
 
@@ -1057,26 +1057,26 @@ json.dumps(result)
           "documentDescriptionInput"
         ).value;
         const dataType = document.getElementById("dataTypeSelect").value;
-        const policyString = buildAndDisplayPolicyString();
-        const sensitiveContent = sensitiveContentInput.value;
+            const policyString = buildAndDisplayPolicyString();
+            const sensitiveContent = sensitiveContentInput.value;
 
-        if (!policyString) {
+            if (!policyString) {
           displayStatus(
             "Vui lòng chọn ít nhất một thuộc tính cho chính sách truy cập.",
             "error"
           );
-          submitButton.disabled = false;
+                submitButton.disabled = false;
           submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
-          return;
-        }
-        if (!sensitiveContent) {
+                return;
+            }
+            if (!sensitiveContent) {
           displayStatus("Vui lòng nhập nội dung chi tiết cần mã hóa.", "error");
-          submitButton.disabled = false;
+                submitButton.disabled = false;
           submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
-          return;
-        }
+                return;
+            }
 
-        try {
+            try {
           let payloadToServer;
 
           if (abePublicKeyObject && pyodide) {
@@ -1095,12 +1095,12 @@ json.dumps(result)
             );
 
             payloadToServer = {
-              patient_id: patientId,
-              description: description,
-              data_type: dataType,
+                    patient_id: patientId,
+                    description: description,
+                    data_type: dataType,
               cpabe_policy_applied: policyString,
-              encrypted_kek_b64: encryptedBundle.encryptedKekBase64,
-              aes_iv_b64: encryptedBundle.ivBase64,
+                    encrypted_kek_b64: encryptedBundle.encryptedKekBase64,
+                    aes_iv_b64: encryptedBundle.ivBase64,
               encrypted_main_content_b64:
                 encryptedBundle.encryptedDataAesBase64,
             };
@@ -1130,25 +1130,25 @@ json.dumps(result)
             localStorage.getItem("access_token") ||
             "dummy_token_for_test";
 
-          const response = await fetch(UPLOAD_API_URL, {
+                const response = await fetch(UPLOAD_API_URL, {
             method: "POST",
-            headers: {
+                    headers: {
               Authorization: `Bearer ${accessToken}`,
               "Content-Type": "application/json",
-            },
+                    },
             body: JSON.stringify(payloadToServer),
-          });
+                });
 
-          const responseData = await response.json();
+                const responseData = await response.json();
 
-          if (response.ok) {
+                if (response.ok) {
             displayStatus(
               `Gửi dữ liệu thành công! ID: ${responseData.entry_id || "N/A"}.`,
               "success"
             );
-            ehrDataForm.reset();
-            buildAndDisplayPolicyString();
-          } else {
+                    ehrDataForm.reset();
+                    buildAndDisplayPolicyString();
+                } else {
             // Handle specific error cases
             let errorMessage =
               responseData.error || responseData.detail || response.statusText;
@@ -1165,8 +1165,8 @@ json.dumps(result)
               `Lỗi từ server (${response.status}): ${errorMessage}`,
               "error"
             );
-          }
-        } catch (error) {
+                }
+            } catch (error) {
           console.error("Lỗi trong quá trình xử lý:", error);
           console.error("Error stack:", error.stack);
           console.error("Error name:", error.name);
@@ -1177,11 +1177,11 @@ json.dumps(result)
           }
 
           displayStatus(`Lỗi: ${errorMessage}`, "error");
-        } finally {
-          submitButton.disabled = false;
+            } finally {
+                submitButton.disabled = false;
           submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
-        }
-      });
+            }
+        });
 
       // --- Custom Attributes Event ---
       customAttributesElement.addEventListener(
@@ -1235,12 +1235,12 @@ json.dumps(result)
         }
       }
 
-      // --- Initial Page Load ---
+        // --- Initial Page Load ---
       document.addEventListener("DOMContentLoaded", async function () {
 
 
-        generatePolicyUI();
-        buildAndDisplayPolicyString();
+            generatePolicyUI();
+            buildAndDisplayPolicyString();
 
         // Enable button cho test mode - không cần đợi Pyodide
         submitButton.disabled = false;
@@ -1251,7 +1251,7 @@ json.dumps(result)
 
         publicKeyFileInput.disabled = true;
         await initializePyodide();
-      });
+        });
     </script>
-  </body>
+</body>
 </html>

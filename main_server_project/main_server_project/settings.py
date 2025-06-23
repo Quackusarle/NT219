@@ -50,6 +50,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'resource_api_app.middleware.JWTAuthenticationMiddleware',  # Thêm JWT middleware
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -161,3 +162,7 @@ SIMPLE_JWT = {
 }
     
 STATIC_URL = 'static/'
+
+# CP-ABE Configuration
+# PHẢI KHỚP VỚI PAIRING GROUP DÙNG Ở AUTH CENTER VÀ CLIENT
+CPABE_PAIRING_GROUP = 'SS512'

@@ -311,6 +311,8 @@
         window.location.href = "/";
       }
 
+
+
       function getDataTypeDisplayName(dataType) {
         const typeMap = {
           'CONSULTATION_NOTE': 'Ghi chú khám bệnh',
@@ -324,7 +326,8 @@
       // --- Get Record ID from URL ---
       function getRecordIdFromURL() {
         const path = window.location.pathname;
-        const match = path.match(/\/decrypt-record\/([^\/]+)\//);
+        // Updated regex to handle URL with or without trailing slash
+        const match = path.match(/\/decrypt-record\/([^\/]+)\/?/);
         return match ? match[1] : null;
       }
 
@@ -333,6 +336,13 @@
         // Show loading overlay
         const loadingOverlay = document.getElementById("loadingOverlay");
         const loadingStatus = document.getElementById("loadingStatus");
+        
+        // Check if elements exist (they might be removed if error page was shown)
+        if (!loadingOverlay || !loadingStatus) {
+          console.log("Loading overlay elements not found, skipping Pyodide initialization");
+          return;
+        }
+        
         loadingOverlay.classList.add("show");
         
         try {
@@ -385,7 +395,7 @@ result
           // Ẩn loading overlay
           loadingOverlay.classList.remove("show");
           
-          displayStatus("Thư viện giải mã đã sẵn sàng. Vui lòng tải lên Public Key và Private Key.", "success");
+          // Pyodide ready, enable file inputs
           publicKeyFileInput.disabled = false;
           privateKeyFileInput.disabled = false;
         } catch (error) {
@@ -401,9 +411,19 @@ result
       async function loadRecordById(recordId) {
         displayStatus("Đang tải bản ghi...", "info");
         try {
-          const accessToken = localStorage.getItem("mainServer_accessToken") ||
-                             localStorage.getItem("access_token") ||
-                             "dummy_token_for_test";
+          const accessToken = localStorage.getItem("mainServer_accessToken");
+          
+          if (!accessToken) {
+            displayStatus("Không tìm thấy token xác thực. Vui lòng đăng nhập lại.", "error");
+            recordInfo.innerHTML = `
+              <div style="color: #842029; text-align: center;">
+                <h4>❌ Chưa Đăng Nhập</h4>
+                <p>Vui lòng đăng nhập để truy cập bản ghi này.</p>
+                <a href="/accounts/login/" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">Đăng Nhập</a>
+              </div>
+            `;
+            return;
+          }
 
           const response = await fetch(`${RETRIEVE_API_URL}${recordId}/`, {
             method: "GET",
@@ -418,6 +438,13 @@ result
             displayRecordInfo(record);
             displayStatus("Bản ghi đã được tải thành công.", "success");
             updateDecryptButtonState();
+                    } else if (response.status === 403) {
+            // 403 Forbidden - không có quyền truy cập
+            const errorData = await response.json();
+            // Redirect tới error page thay vì thay thế HTML
+            const errorMessage = encodeURIComponent(errorData.detail || errorData.error || "Không có quyền truy cập bản ghi này.");
+            window.location.href = `/error-access-denied/?message=${errorMessage}&record_id=${recordId}`;
+            return; // Dừng xử lý
           } else {
             const errorData = await response.json();
             displayStatus(`Lỗi tải bản ghi: ${errorData.error || "Unknown error"}`, "error");
@@ -837,6 +864,13 @@ json.dumps(final_result)
 
         // Load record first
         await loadRecordById(recordId);
+        
+        // Check if currentRecord is loaded successfully
+        // If not (e.g., due to 403 error), don't initialize Pyodide
+        if (!currentRecord) {
+          console.log("Record not loaded, skipping Pyodide initialization");
+          return;
+        }
         
         // Initialize Pyodide - disable file input until complete
         privateKeyFileInput.disabled = true;

@@ -10,6 +10,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import ProtectedEHRTextData
 from .serializers import ProtectedEHRTextDataCreateSerializer, ProtectedEHRTextDataResponseSerializer
+from .permissions import SatisfiesCPABEPolicyPermission, CHARM_GROUP_FOR_POLICY_CHECK, MSP_UTIL_FOR_POLICY_CHECK
+from django.http import Http404
 import logging
 
 # Logger cho Resource API App
@@ -68,12 +70,35 @@ def decrypt_document_page_view(request):
 
 def decrypt_record_page_view(request, record_id):
     """
-    View để hiển thị trang decrypt một bản ghi cụ thể
+    View để hiển thị trang decrypt một bản ghi cụ thể.
+    Không kiểm tra CP-ABE policy ở đây nữa - để JavaScript xử lý.
+    Chỉ hiển thị trang và để JavaScript kiểm tra quyền truy cập.
     """
+    logger.info(f"decrypt_record_page_view called for record_id: {record_id}")
+    
+    # Không cần kiểm tra JWT ở đây, để JavaScript xử lý
+    # Vì token được lưu trong localStorage
     context = {
         'record_id': record_id
     }
     return render(request, 'decrypt_record.html', context)
+
+
+def error_access_denied_view(request):
+    """
+    View để hiển thị error page khi không có quyền truy cập CP-ABE
+    """
+    error_message = request.GET.get('message', 'Bạn không có quyền truy cập tài nguyên này.')
+    record_id = request.GET.get('record_id', '')
+    
+    context = {
+        'error_title': 'Không Có Quyền Truy Cập',
+        'error_message': 'Thuộc tính CP-ABE của bạn không thỏa mãn chính sách truy cập của dữ liệu này.',
+        'error_details': error_message,
+        'back_url': '/decrypt/',
+        'record_id': record_id
+    }
+    return render(request, 'error_access_denied.html', context)
 
 
 # API View để test JWT authentication
@@ -99,23 +124,105 @@ class TestAuthView(APIView):
             except Exception as e:
                 logger.warning(f"Error parsing user attributes: {e}")
         
+        # Lấy CP-ABE IDs từ JWT token (đọc từ user_attributes)
+        cpabe_ids_str = ""
+        cpabe_ids_list = []
+        if hasattr(request, 'auth') and request.auth and hasattr(request.auth, 'payload'):
+            cpabe_ids_str = request.auth.payload.get('user_attributes', '')
+            if cpabe_ids_str:
+                cpabe_ids_list = [attr.strip() for attr in cpabe_ids_str.split(',') if attr.strip()]
+        
         user_info = {
             'user_id': user.id,
             'username': getattr(user, 'username', 'unknown'),
             'email': getattr(user, 'email', ''),
             'raw_user_attributes': getattr(user, 'user_attributes', ''),
             'parsed_attributes': parsed_attributes,
+            'cpabe_ids_raw': cpabe_ids_str,
+            'cpabe_ids_list': cpabe_ids_list,
             'is_authenticated': user.is_authenticated,
         }
         
-        logger.info(f"Auth Center token successfully parsed for user: {user_info['username']}")
+        logger.info(f"Auth Center token successfully parsed for user: {user_info['username']} with CP-ABE IDs: {cpabe_ids_list}")
         
         return Response({
             'message': 'Auth Center JWT token successfully authenticated and parsed',
             'user_info': user_info,
             'attributes_count': len(parsed_attributes),
+            'cpabe_attributes_count': len(cpabe_ids_list),
             'server_info': 'Resource Server - Main Server Project'
         }, status=status.HTTP_200_OK)
+
+
+class DebugCPABEView(APIView):
+    """
+    API endpoint để debug CP-ABE policy checking
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, entry_id_uuid):
+        """
+        Debug API để xem thông tin chi tiết về CP-ABE policy checking
+        """
+        try:
+            # Lấy bản ghi EHR
+            ehr_entry = ProtectedEHRTextData.objects.get(id=entry_id_uuid)
+            
+            # Lấy thông tin user từ JWT
+            user = request.user
+            token_payload = request.auth.payload if hasattr(request, 'auth') and request.auth else {}
+            
+            # Lấy CP-ABE IDs từ JWT token (đọc từ user_attributes)
+            user_cpabe_ids_str = token_payload.get('user_attributes', '')
+            user_attributes_list = []
+            if user_cpabe_ids_str:
+                user_attributes_list = [attr.strip() for attr in user_cpabe_ids_str.split(',') if attr.strip()]
+            
+            # Thông tin debug
+            debug_info = {
+                'user_id': user.id,
+                'username': getattr(user, 'username', 'unknown'),
+                'ehr_entry_id': str(ehr_entry.id),
+                'ehr_policy': ehr_entry.cpabe_policy_applied,
+                'user_cpabe_ids_raw': user_cpabe_ids_str,
+                'user_cpabe_ids_list': user_attributes_list,
+                'jwt_payload': token_payload,
+                'permission_check_result': None,
+                'permission_error': None
+            }
+            
+            # Thử kiểm tra permission
+            try:
+                from .permissions import SatisfiesCPABEPolicyPermission
+                permission_checker = SatisfiesCPABEPolicyPermission()
+                
+                # Kiểm tra has_object_permission
+                permission_result = permission_checker.has_object_permission(request, None, ehr_entry)
+                debug_info['permission_check_result'] = permission_result
+                debug_info['permission_message'] = permission_checker.message if not permission_result else "Access granted"
+                
+                if permission_result:
+                    debug_info['access_status'] = 'ALLOWED'
+                else:
+                    debug_info['access_status'] = 'DENIED'
+                    
+            except Exception as e:
+                debug_info['permission_error'] = str(e)
+                debug_info['access_status'] = 'ERROR'
+            
+            return Response({
+                'debug_info': debug_info,
+                'charm_crypto_status': {
+                    'group_initialized': CHARM_GROUP_FOR_POLICY_CHECK is not None,
+                    'msp_initialized': MSP_UTIL_FOR_POLICY_CHECK is not None
+                }
+            }, status=status.HTTP_200_OK)
+            
+        except ProtectedEHRTextData.DoesNotExist:
+            return Response({"error": "Không tìm thấy bản ghi EHR."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Debug CP-ABE error: {e}")
+            return Response({"error": f"Debug error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class UploadEHRTextView(APIView):
@@ -149,36 +256,53 @@ class UploadEHRTextView(APIView):
             logger.warning(f"Dữ liệu upload từ user {user_id_from_token} không hợp lệ: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# TODO: Tạo API View để lấy danh sách hoặc chi tiết một ProtectedEHRTextData
-# View này sẽ trả về các trường đã mã hóa để client tự giải mã.
 class RetrieveEHRTextView(APIView):
-    permission_classes = [IsAuthenticated] # Thêm permission ABAC nếu cần
+    """
+    API View để lấy chi tiết một ProtectedEHRTextData với kiểm tra CP-ABE policy
+    View này sẽ trả về các trường đã mã hóa để client tự giải mã.
+    """
+    permission_classes = [IsAuthenticated, SatisfiesCPABEPolicyPermission]
 
-    def get(self, request, entry_id_uuid): # Giả sử entry_id là UUID
+    def get_object(self, entry_id_uuid):
+        """
+        Lấy object EHR entry theo ID, cần thiết cho object-level permission checking
+        """
         try:
-            ehr_entry = ProtectedEHRTextData.objects.get(id=entry_id_uuid)
-            # TODO: Áp dụng ABAC permission ở đây nếu cần, ví dụ:
-            # if not user_can_access_this_specific_entry(request.user, request.auth.payload, ehr_entry):
-            #     return Response({"error": "Không có quyền truy cập bản ghi này."}, status=status.HTTP_403_FORBIDDEN)
-
-            # Trả về tất cả các trường cần thiết cho client giải mã
-            data_to_return = {
-                'id': ehr_entry.id,
-                'patient_id_on_rs': ehr_entry.patient_id_on_rs,
-                'description': ehr_entry.description,
-                'data_type': ehr_entry.data_type,
-                'cpabe_policy_applied': ehr_entry.cpabe_policy_applied,
-                'encrypted_kek_b64': ehr_entry.encrypted_kek_b64,
-                'aes_iv_b64': ehr_entry.aes_iv_b64,
-                'encrypted_main_content_b64': ehr_entry.encrypted_main_content_b64,
-                'created_at': ehr_entry.created_at
-            }
-            return Response(data_to_return)
+            return ProtectedEHRTextData.objects.get(id=entry_id_uuid)
         except ProtectedEHRTextData.DoesNotExist:
-            return Response({"error": "Không tìm thấy bản ghi EHR."}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Lỗi khi truy xuất EHR text entry {entry_id_uuid}: {e}")
-            return Response({"error": "Lỗi phía server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            raise Http404
+
+    def get(self, request, entry_id_uuid):
+        """
+        Lấy chi tiết một bản ghi EHR đã mã hóa.
+        Trước khi trả về, kiểm tra xem thuộc tính CP-ABE của user có thỏa mãn 
+        chính sách được lưu trữ cùng dữ liệu hay không.
+        """
+        ehr_entry = self.get_object(entry_id_uuid)
+        
+        # Kiểm tra object-level permission (SatisfiesCPABEPolicyPermission.has_object_permission)
+        # Django REST Framework sẽ tự động gọi has_object_permission khi có object
+        self.check_object_permissions(request, ehr_entry)
+        
+        # Nếu đến được đây, SatisfiesCPABEPolicyPermission.has_object_permission đã trả về True
+        
+        # Chuẩn bị dữ liệu để trả về cho client (bao gồm các phần đã mã hóa)
+        data_to_return = {
+            'id': str(ehr_entry.id),  # Chuyển UUID thành string
+            'patient_id_on_rs': ehr_entry.patient_id_on_rs,
+            'description': ehr_entry.description,
+            'data_type': ehr_entry.data_type,
+            'cpabe_policy_applied': ehr_entry.cpabe_policy_applied,
+            'encrypted_kek_b64': ehr_entry.encrypted_kek_b64,
+            'aes_iv_b64': ehr_entry.aes_iv_b64,
+            'encrypted_main_content_b64': ehr_entry.encrypted_main_content_b64,
+            'created_at': ehr_entry.created_at.isoformat()  # Định dạng ISO cho datetime
+        }
+        
+        logger.info(f"User {request.user.id} được phép truy cập ciphertext của EHR entry ID: {ehr_entry.id} "
+                   f"(Policy CP-ABE '{ehr_entry.cpabe_policy_applied}' đã được kiểm tra phía server)")
+        
+        return Response(data_to_return)
 
 
 class ListEHRByPatientView(APIView):

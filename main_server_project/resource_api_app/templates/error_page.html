@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ error_title|default:"Lỗi" }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .error-container {
+            max-width: 600px;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        .error-icon {
+            font-size: 4em;
+            color: #dc3545;
+            margin-bottom: 20px;
+        }
+        .error-title {
+            font-size: 2em;
+            color: #dc3545;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        .error-message {
+            font-size: 1.2em;
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+        .error-details {
+            font-size: 1em;
+            color: #495057;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            border-left: 4px solid #ffc107;
+        }
+        .error-actions {
+            margin-top: 30px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 500;
+            margin: 0 10px;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+            text-decoration: none;
+            color: white;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        .policy-info {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 0.9em;
+            border: 1px solid #dee2e6;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-icon">🚫</div>
+        <h1 class="error-title">{{ error_title|default:"Lỗi Truy Cập" }}</h1>
+        <p class="error-message">{{ error_message|default:"Bạn không có quyền truy cập tài nguyên này." }}</p>
+        
+        {% if error_details %}
+        <div class="error-details">
+            <strong>Chi tiết:</strong><br>
+            {{ error_details }}
+        </div>
+        {% endif %}
+        
+        {% if record_policy %}
+        <div class="policy-info">
+            <strong>Chính sách yêu cầu:</strong><br>
+            <code>{{ record_policy }}</code>
+        </div>
+        {% endif %}
+        
+        <div class="error-actions">
+            {% if back_url %}
+            <a href="{{ back_url }}" class="btn btn-secondary">← Quay Lại</a>
+            {% endif %}
+            <a href="/" class="btn">🏠 Trang Chủ</a>
+        </div>
+        
+        <div style="margin-top: 30px; font-size: 0.9em; color: #6c757d;">
+            <p>Nếu bạn tin rằng bạn nên có quyền truy cập, vui lòng liên hệ quản trị viên hệ thống.</p>
+        </div>
+    </div>
+</body>
+</html> 
