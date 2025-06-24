@@ -59,12 +59,23 @@ def home_view(request):
     return render(request, 'home.html', context)
 
 def upload_document_page_view(request):
+    """
+    View để hiển thị trang upload document.
+    Yêu cầu user phải đăng nhập trước khi truy cập.
+    Authentication check được thực hiện ở client-side JavaScript.
+    """
+    # Note: JWT authentication check sẽ được thực hiện ở client-side
+    # vì token được lưu trong localStorage, không phải HTTP-only cookie
     return render(request, 'upload_document.html')
 
 def decrypt_document_page_view(request):
     """
-    View để hiển thị trang tìm kiếm bản ghi theo patient_id
+    View để hiển thị trang tìm kiếm bản ghi theo patient_id.
+    Yêu cầu user phải đăng nhập trước khi truy cập.
+    Authentication check được thực hiện ở client-side JavaScript.
     """
+    # Note: JWT authentication check sẽ được thực hiện ở client-side
+    # vì token được lưu trong localStorage, không phải HTTP-only cookie
     return render(request, 'decrypt_document.html')
 
 
@@ -226,8 +237,7 @@ class DebugCPABEView(APIView):
 
 
 class UploadEHRTextView(APIView):
-    permission_classes = [IsAuthenticated] # Chỉ user đã đăng nhập mới được upload
-    # permission_classes = [IsAuthenticated, CanUploadTextDataPermission] # Nếu bạn có permission ABAC
+    permission_classes = [IsAuthenticated] 
 
     def post(self, request):
         user_id_from_token = request.user.id # Lấy từ JWT đã được xác thực
@@ -257,36 +267,18 @@ class UploadEHRTextView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class RetrieveEHRTextView(APIView):
-    """
-    API View để lấy chi tiết một ProtectedEHRTextData với kiểm tra CP-ABE policy
-    View này sẽ trả về các trường đã mã hóa để client tự giải mã.
-    """
+
     permission_classes = [IsAuthenticated, SatisfiesCPABEPolicyPermission]
 
     def get_object(self, entry_id_uuid):
-        """
-        Lấy object EHR entry theo ID, cần thiết cho object-level permission checking
-        """
+
         try:
             return ProtectedEHRTextData.objects.get(id=entry_id_uuid)
         except ProtectedEHRTextData.DoesNotExist:
             raise Http404
-
     def get(self, request, entry_id_uuid):
-        """
-        Lấy chi tiết một bản ghi EHR đã mã hóa.
-        Trước khi trả về, kiểm tra xem thuộc tính CP-ABE của user có thỏa mãn 
-        chính sách được lưu trữ cùng dữ liệu hay không.
-        """
         ehr_entry = self.get_object(entry_id_uuid)
-        
-        # Kiểm tra object-level permission (SatisfiesCPABEPolicyPermission.has_object_permission)
-        # Django REST Framework sẽ tự động gọi has_object_permission khi có object
         self.check_object_permissions(request, ehr_entry)
-        
-        # Nếu đến được đây, SatisfiesCPABEPolicyPermission.has_object_permission đã trả về True
-        
-        # Chuẩn bị dữ liệu để trả về cho client (bao gồm các phần đã mã hóa)
         data_to_return = {
             'id': str(ehr_entry.id),  # Chuyển UUID thành string
             'patient_id_on_rs': ehr_entry.patient_id_on_rs,

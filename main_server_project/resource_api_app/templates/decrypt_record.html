@@ -714,6 +714,95 @@ result
         }
       }
 
+      // --- File Handling Helper Functions ---
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      function downloadCurrentFile() {
+        if (!window.currentDecryptedUrl || !window.currentDownloadName) {
+          displayStatus("Lỗi: Không tìm thấy file để tải về!", "error");
+          return;
+        }
+        
+        const a = document.createElement('a');
+        a.href = window.currentDecryptedUrl;
+        a.download = window.currentDownloadName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        displayStatus("File đã được tải về!", "success");
+      }
+
+      function previewCurrentFile() {
+        if (!window.currentDecryptedUrl || !window.currentFileType) {
+          displayStatus("Lỗi: Không tìm thấy file để xem trước!", "error");
+          return;
+        }
+        
+        const previewDiv = document.getElementById('filePreview');
+        const url = window.currentDecryptedUrl;
+        const fileType = window.currentFileType;
+        
+        console.log(`Previewing file type: ${fileType}`);
+        
+        if (fileType === "image") {
+          previewDiv.innerHTML = `
+            <div style="text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+              <h6>🖼️ Xem trước ảnh:</h6>
+              <img src="${url}" alt="Decrypted Image" style="max-width: 100%; max-height: 400px; border-radius: 5px;" 
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+              <div style="display: none; color: #dc3545;">❌ Không thể hiển thị ảnh này</div>
+            </div>
+          `;
+        } else if (fileType === "document") {
+          previewDiv.innerHTML = `
+            <div style="text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+              <h6>📄 Xem trước tài liệu:</h6>
+              <iframe src="${url}" style="width: 100%; height: 400px; border: none; border-radius: 5px;" 
+                      onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+              </iframe>
+              <div style="display: none; color: #dc3545;">❌ Không thể hiển thị tài liệu này trong trình duyệt</div>
+            </div>
+          `;
+        } else {
+          // For other file types, try to display as text if small enough
+          if (window.currentDecryptedBlob && window.currentDecryptedBlob.size < 50000) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+              try {
+                const text = e.target.result;
+                previewDiv.innerHTML = `
+                  <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px;">
+                    <h6>📄 Xem trước nội dung text:</h6>
+                    <pre style="background-color: #f8f9fa; padding: 10px; border-radius: 3px; white-space: pre-wrap; max-height: 300px; overflow-y: auto;">${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+                  </div>
+                `;
+              } catch (error) {
+                previewDiv.innerHTML = `
+                  <div style="text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px; color: #6c757d;">
+                    <h6>📁 File nhị phân</h6>
+                    <p>Không thể xem trước loại file này. Vui lòng tải về để mở bằng ứng dụng phù hợp.</p>
+                  </div>
+                `;
+              }
+            };
+            reader.readAsText(window.currentDecryptedBlob);
+          } else {
+            previewDiv.innerHTML = `
+              <div style="text-align: center; border: 1px solid #ddd; padding: 10px; border-radius: 5px; color: #6c757d;">
+                <h6>📁 File lớn</h6>
+                <p>File quá lớn để xem trước. Vui lòng tải về để mở bằng ứng dụng phù hợp.</p>
+              </div>
+            `;
+          }
+        }
+      }
+
       // --- Decryption Logic ---
       async function decryptRecord() {
         if (!currentRecord || !publicKeyObject || !privateKeyObject || !pyodide) {
@@ -824,15 +913,326 @@ json.dumps(final_result)
             encryptedContent
           );
 
-          const decryptedText = new TextDecoder().decode(decryptedBuffer);
-         
-          // Display the decrypted content
-          decryptedContent.innerHTML = `
-            <h5>Nội dung gốc:</h5>
-            <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
-              ${decryptedText}
-            </div>
-          `;
+          // Smart detection: Check if this is binary file data or text data
+          let isTextData = true;
+          let displayContent = "";
+          
+          const contentSize = decryptedBuffer.byteLength;
+          console.log(`Decrypted content size: ${contentSize} bytes`);
+          
+          // Calculate entropy to detect encrypted vs plaintext content
+          const bytes = new Uint8Array(decryptedBuffer);
+          const byteFreq = new Array(256).fill(0);
+          for (let i = 0; i < bytes.length; i++) {
+            byteFreq[bytes[i]]++;
+          }
+          const uniqueBytes = byteFreq.filter(f => f > 0).length;
+          const entropy = uniqueBytes / 256;
+          console.log(`Content entropy: ${entropy.toFixed(3)} (0-1, higher = more random)`);
+          
+          // Detection logic based on size, entropy, and description
+          const description = currentRecord.description.toLowerCase();
+          const isLargeContent = contentSize > 500000; // > 500KB
+          const isHighEntropy = entropy > 0.8; // High randomness (encrypted)
+          const hasFileKeywords = description.includes('xét nghiệm') || 
+                                   description.includes('ảnh') || 
+                                   description.includes('hình') ||
+                                   description.includes('pdf') ||
+                                   description.includes('kết quả');
+          
+          console.log(`Detection factors: large=${isLargeContent}, highEntropy=${isHighEntropy}, fileKeywords=${hasFileKeywords}`);
+          
+          if (isLargeContent || (isHighEntropy && hasFileKeywords)) {
+            // Treat as binary file
+            isTextData = false;
+            console.log("Detected as BINARY FILE");
+          } else {
+            // Try to decode as text
+            try {
+              const decryptedText = new TextDecoder("utf-8", { fatal: true }).decode(decryptedBuffer);
+              
+              // Additional text validation
+              const nonPrintableRatio = (decryptedText.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g) || []).length / decryptedText.length;
+              const hasReadableText = /[a-zA-Z\u00C0-\u024F\u1E00-\u1EFF]/.test(decryptedText); // Latin + Vietnamese
+              
+              if (nonPrintableRatio > 0.1 || !hasReadableText) {
+                isTextData = false;
+                console.log("Invalid text content, treating as file");
+              } else {
+                displayContent = decryptedText;
+                isTextData = true;
+                console.log("Valid TEXT content detected");
+              }
+            } catch (e) {
+              isTextData = false;
+              console.log("Text decoding failed, treating as file");
+            }
+          }
+          
+          // Display the decrypted content based on type
+          if (isTextData) {
+            // Check if this might be base64-encoded binary data
+            try {
+              const textContent = new TextDecoder("utf-8").decode(decryptedBuffer);
+              
+              // Check if content looks like base64 and starts with common file signatures
+              const base64Pattern = /^[A-Za-z0-9+/]+=*$/;
+              const isLikelyBase64 = base64Pattern.test(textContent.replace(/\s/g, ''));
+              const startsWithZipB64 = textContent.startsWith('UEsD'); // ZIP signature in base64
+              const startsWithPdfB64 = textContent.startsWith('JVBER'); // %PDF signature in base64
+              const isLargeBase64 = textContent.length > 100000; // Large base64 content
+              
+              console.log(`Base64 detection: isLikelyBase64=${isLikelyBase64}, startsWithZip=${startsWithZipB64}, startsWithPdf=${startsWithPdfB64}, isLarge=${isLargeBase64}`);
+              
+              if (isLikelyBase64 && (startsWithZipB64 || startsWithPdfB64 || isLargeBase64)) {
+                console.log("Detected base64-encoded binary data, attempting decode...");
+                
+                try {
+                  // Try to decode base64
+                  const binaryData = Uint8Array.from(atob(textContent), c => c.charCodeAt(0));
+                  console.log(`Base64 decoded to ${binaryData.length} bytes`);
+                  
+                  // Now treat this as binary data
+                  const fileSize = binaryData.length;
+                  const fileSizeFormatted = formatFileSize(fileSize);
+                  
+                  // Check file signature on decoded data
+                  const firstBytes = binaryData.slice(0, 10);
+                  const fileSignature = Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+                  
+                  console.log(`Decoded file signature: ${fileSignature}`);
+                  console.log(`Decoded first 4 bytes as string: ${String.fromCharCode(...firstBytes.slice(0, 4))}`);
+                  
+                  // Enhanced detection on decoded data
+                  const isPDF = String.fromCharCode(...firstBytes.slice(0, 4)) === '%PDF';
+                  const isJPEG = firstBytes[0] === 0xFF && firstBytes[1] === 0xD8;
+                  const isPNG = firstBytes[0] === 0x89 && firstBytes[1] === 0x50 && firstBytes[2] === 0x4E && firstBytes[3] === 0x47;
+                  const isZIP = String.fromCharCode(...firstBytes.slice(0, 4)) === 'PK\x03\x04';
+                  
+                  console.log(`Decoded file type detection: PDF=${isPDF}, JPEG=${isJPEG}, PNG=${isPNG}, ZIP=${isZIP}`);
+                  
+                  let fileType = "unknown";
+                  let downloadName = "decrypted_file";
+                  let mimeType = "application/octet-stream";
+                  
+                  if (isPDF) {
+                    fileType = "pdf_document";
+                    downloadName = `decrypted_document_${Date.now()}.pdf`;
+                    mimeType = "application/pdf";
+                  } else if (isJPEG) {
+                    fileType = "image";
+                    downloadName = `decrypted_image_${Date.now()}.jpg`;
+                    mimeType = "image/jpeg";
+                  } else if (isPNG) {
+                    fileType = "image";
+                    downloadName = `decrypted_image_${Date.now()}.png`;
+                    mimeType = "image/png";
+                  } else if (isZIP) {
+                    // ZIP could be Office document
+                    const description = currentRecord.description.toLowerCase();
+                    if (description.includes('xét nghiệm') || description.includes('kết quả') || description.includes('document')) {
+                      fileType = "office_document";
+                      downloadName = `decrypted_document_${Date.now()}.docx`;
+                      mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    } else {
+                      fileType = "archive";
+                      downloadName = `decrypted_archive_${Date.now()}.zip`;
+                      mimeType = "application/zip";
+                    }
+                  } else {
+                    // Fallback based on description
+                    const description = currentRecord.description.toLowerCase();
+                    if (description.includes('xét nghiệm') || description.includes('kết quả')) {
+                      fileType = "medical_report";
+                      downloadName = `medical_report_${Date.now()}.docx`;
+                      mimeType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                    }
+                  }
+                  
+                  // Create blob with decoded binary data
+                  const blob = new Blob([binaryData], { type: mimeType });
+                  const url = URL.createObjectURL(blob);
+                  
+                  // Store globally for button handlers
+                  window.currentDecryptedBlob = blob;
+                  window.currentDecryptedUrl = url;
+                  window.currentFileType = fileType;
+                  window.currentDownloadName = downloadName;
+                  
+                  decryptedContent.innerHTML = `
+                    <h5>🎉 File đã giải mã thành công! (Base64 decoded)</h5>
+                    <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                      <div style="margin-bottom: 15px;">
+                        <strong>📁 Loại file:</strong> ${fileType.toUpperCase().replace(/_/g, ' ')}<br>
+                        <strong>📏 Kích thước:</strong> ${fileSizeFormatted}<br>
+                        <strong>📄 Mô tả gốc:</strong> ${currentRecord.description}<br>
+                        <strong>🏷️ Data Type:</strong> ${currentRecord.data_type}<br>
+                        <strong>🔗 MIME Type:</strong> ${mimeType}<br>
+                        <strong>🔄 Encoding:</strong> Base64 → Binary<br>
+                        <strong>📅 Tạo lúc:</strong> ${new Date(currentRecord.created_at).toLocaleString('vi-VN')}
+                      </div>
+                      
+                      <div style="margin-bottom: 15px;">
+                        <button onclick="downloadCurrentFile()" 
+                                style="background-color: #28a745; padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                          💾 Tải về file đã giải mã
+                        </button>
+                        
+                        <button onclick="previewCurrentFile()" 
+                                style="background-color: #17a2b8; padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                          👁️ Xem trước (nếu có thể)
+                        </button>
+                      </div>
+                      
+                      <div id="filePreview" style="margin-top: 15px;"></div>
+                    </div>
+                  `;
+                  
+                  // Skip the normal binary handling since we handled it here
+                  decryptedResult.style.display = "block";
+                  displayStatus("Giải mã thành công! (Base64 decoded)", "success");
+                  return; // Exit early
+                  
+                } catch (base64Error) {
+                  console.log("Base64 decode failed, treating as regular text:", base64Error);
+                }
+              }
+            } catch (e) {
+              console.log("Text content analysis failed:", e);
+            }
+            
+            // Regular text content display
+            decryptedContent.innerHTML = `
+              <h5>Nội dung văn bản đã giải mã:</h5>
+              <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb; white-space: pre-wrap;">
+                ${displayContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+              </div>
+            `;
+          } else {
+            // Binary file content
+            const fileSize = decryptedBuffer.byteLength;
+            const fileSizeFormatted = formatFileSize(fileSize);
+            
+            // Enhanced file type detection
+            const description = currentRecord.description.toLowerCase();
+            let fileType = "unknown";
+            let downloadName = "decrypted_file";
+            let mimeType = "application/octet-stream";
+            
+            // Check file signature (magic numbers) for better detection
+            const firstBytes = new Uint8Array(decryptedBuffer.slice(0, 10));
+            const fileSignature = Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            console.log(`File signature: ${fileSignature}`);
+            console.log(`First 4 bytes as string: ${String.fromCharCode(...firstBytes.slice(0, 4))}`);
+            
+            // PDF detection: %PDF signature
+            const isPDF = String.fromCharCode(...firstBytes.slice(0, 4)) === '%PDF';
+            
+            // JPEG detection: FF D8 signature
+            const isJPEG = firstBytes[0] === 0xFF && firstBytes[1] === 0xD8;
+            
+            // PNG detection: 89 50 4E 47 signature
+            const isPNG = firstBytes[0] === 0x89 && firstBytes[1] === 0x50 && firstBytes[2] === 0x4E && firstBytes[3] === 0x47;
+            
+            console.log(`File type detection: PDF=${isPDF}, JPEG=${isJPEG}, PNG=${isPNG}`);
+            
+            // More sophisticated detection based on signature first, then description and size
+            if (isPDF) {
+              fileType = "pdf_document";
+              downloadName = `decrypted_document_${Date.now()}.pdf`;
+              mimeType = "application/pdf";
+            } else if (isJPEG) {
+              fileType = "image";
+              downloadName = `decrypted_image_${Date.now()}.jpg`;
+              mimeType = "image/jpeg";
+            } else if (isPNG) {
+              fileType = "image";
+              downloadName = `decrypted_image_${Date.now()}.png`;
+              mimeType = "image/png";
+            } else if (description.includes("ảnh") || description.includes("hình") || description.includes("image") || description.includes("photo")) {
+              fileType = "image";
+              downloadName = `decrypted_image_${Date.now()}.jpg`;
+              mimeType = "image/jpeg";
+            } else if (description.includes("pdf") || description.includes("tài liệu") || description.includes("document")) {
+              fileType = "pdf_document";
+              downloadName = `decrypted_document_${Date.now()}.pdf`;
+              mimeType = "application/pdf";
+            } else if (description.includes("xét nghiệm") || description.includes("kết quả") || description.includes("test") || description.includes("lab")) {
+              // Medical results could be PDF or image
+              if (fileSize > 1000000) { // > 1MB likely scan/image
+                fileType = "medical_scan";
+                downloadName = `medical_result_${Date.now()}.pdf`;
+                mimeType = "application/pdf";
+              } else {
+                fileType = "medical_report";
+                downloadName = `medical_report_${Date.now()}.txt`;
+                mimeType = "text/plain";
+              }
+            } else if (description.includes("ct") || description.includes("mri") || description.includes("x-ray") || description.includes("chụp")) {
+              fileType = "medical_image";
+              downloadName = `medical_scan_${Date.now()}.jpg`;
+              mimeType = "image/jpeg";
+            } else if (description.includes("ghi chú") || description.includes("note")) {
+              fileType = "note";
+              downloadName = `note_${Date.now()}.txt`;
+              mimeType = "text/plain";
+            } else {
+              // Default based on size
+              if (fileSize > 5000000) { // > 5MB
+                fileType = "large_document";
+                downloadName = `large_file_${Date.now()}.pdf`;
+                mimeType = "application/pdf";
+              } else if (fileSize > 100000) { // > 100KB
+                fileType = "document";
+                downloadName = `document_${Date.now()}.pdf`;
+                mimeType = "application/pdf";
+              } else {
+                fileType = "small_file";
+                downloadName = `file_${Date.now()}.bin`;
+                mimeType = "application/octet-stream";
+              }
+            }
+            
+            // Create blob with proper MIME type after detection
+            const blob = new Blob([decryptedBuffer], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            
+            // Store these globally for the button handlers
+            window.currentDecryptedBlob = blob;
+            window.currentDecryptedUrl = url;
+            window.currentFileType = fileType;
+            window.currentDownloadName = downloadName;
+            
+            decryptedContent.innerHTML = `
+              <h5>🎉 File đã giải mã thành công!</h5>
+              <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                <div style="margin-bottom: 15px;">
+                  <strong>📁 Loại file:</strong> ${fileType.toUpperCase().replace(/_/g, ' ')}<br>
+                  <strong>📏 Kích thước:</strong> ${fileSizeFormatted}<br>
+                  <strong>📄 Mô tả gốc:</strong> ${currentRecord.description}<br>
+                  <strong>🏷️ Data Type:</strong> ${currentRecord.data_type}<br>
+                  <strong>🔗 MIME Type:</strong> ${mimeType}<br>
+                  <strong>🧮 Entropy:</strong> ${entropy.toFixed(3)} (${entropy > 0.8 ? 'High - Real encryption' : 'Low - Test data'})<br>
+                  <strong>📅 Tạo lúc:</strong> ${new Date(currentRecord.created_at).toLocaleString('vi-VN')}
+                </div>
+                
+                <div style="margin-bottom: 15px;">
+                  <button onclick="downloadCurrentFile()" 
+                          style="background-color: #28a745; padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                    💾 Tải về file đã giải mã
+                  </button>
+                  
+                  <button onclick="previewCurrentFile()" 
+                          style="background-color: #17a2b8; padding: 10px 20px; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                    👁️ Xem trước (nếu có thể)
+                  </button>
+                </div>
+                
+                <div id="filePreview" style="margin-top: 15px;"></div>
+              </div>
+            `;
+          }
           decryptedResult.style.display = "block";
 
           displayStatus("Giải mã thành công!", "success");
@@ -842,6 +1242,102 @@ json.dumps(final_result)
           displayStatus(`Lỗi giải mã: ${error.message}`, "error");
         } finally {
           decryptButton.disabled = false;
+        }
+      }
+
+      // --- File Handling Functions ---
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      function downloadCurrentFile() {
+        if (!window.currentDecryptedBlob || !window.currentDownloadName) {
+          alert('Không có file để tải xuống');
+          return;
+        }
+        
+        const link = document.createElement('a');
+        link.href = window.currentDecryptedUrl;
+        link.download = window.currentDownloadName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      function previewCurrentFile() {
+        if (!window.currentDecryptedBlob || !window.currentDecryptedUrl) {
+          alert('Không có file để xem trước');
+          return;
+        }
+        
+        const previewDiv = document.getElementById('filePreview');
+        const fileType = window.currentFileType;
+        
+        // Clear previous preview
+        previewDiv.innerHTML = '';
+        
+        try {
+          if (fileType.includes('image') || fileType.includes('medical_image')) {
+            // Try to display as image
+            previewDiv.innerHTML = `
+              <h6>🖼️ Xem trước hình ảnh:</h6>
+              <img src="${window.currentDecryptedUrl}" 
+                   style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 5px;" 
+                   onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+              <div style="display: none; padding: 10px; background-color: #f8d7da; color: #842029; border-radius: 5px;">
+                ❌ Không thể hiển thị hình ảnh. Vui lòng tải xuống để xem.
+              </div>
+            `;
+          } else if (fileType.includes('pdf') || fileType.includes('document')) {
+            // Open PDF in new tab/window
+            const newWindow = window.open(window.currentDecryptedUrl, '_blank');
+            if (!newWindow) {
+              previewDiv.innerHTML = `
+                <div style="padding: 10px; background-color: #fff3cd; color: #664d03; border-radius: 5px;">
+                  ⚠️ Trình duyệt chặn popup. Vui lòng bấm vào link sau để xem file:
+                  <br><br>
+                  <a href="${window.currentDecryptedUrl}" target="_blank" 
+                     style="background-color: #17a2b8; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; display: inline-block;">
+                    📄 Mở PDF trong tab mới
+                  </a>
+                </div>
+              `;
+            } else {
+              previewDiv.innerHTML = `
+                <div style="padding: 10px; background-color: #d1e7dd; color: #0f5132; border-radius: 5px;">
+                  ✅ PDF đã mở trong tab mới
+                </div>
+              `;
+            }
+          } else {
+            // For other file types, provide download link
+            previewDiv.innerHTML = `
+              <div style="padding: 10px; background-color: #cff4fc; color: #055160; border-radius: 5px;">
+                ℹ️ Loại file này không thể xem trước trực tiếp. Vui lòng tải xuống để mở bằng ứng dụng phù hợp.
+                <br><br>
+                <button onclick="downloadCurrentFile()" 
+                        style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+                  💾 Tải xuống ngay
+                </button>
+              </div>
+            `;
+          }
+        } catch (error) {
+          console.error('Preview error:', error);
+          previewDiv.innerHTML = `
+            <div style="padding: 10px; background-color: #f8d7da; color: #842029; border-radius: 5px;">
+              ❌ Lỗi khi xem trước: ${error.message}
+              <br><br>
+              <button onclick="downloadCurrentFile()" 
+                      style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">
+                💾 Tải xuống thay thế
+              </button>
+            </div>
+          `;
         }
       }
 

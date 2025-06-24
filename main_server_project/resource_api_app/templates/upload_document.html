@@ -202,9 +202,21 @@
       }
     </style>
 </head>
-<body>
+  <body>
     <div class="container">
-        <h2>Nhập và Mã Hóa Dữ Liệu Y Tế</h2>
+      <!-- User Info Header -->
+      <div class="user-header" id="userHeader" style="display: none; background-color: #f8f9fa; padding: 10px 15px; border-radius: 5px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <span style="font-weight: 600; color: #2c3e50;">👤 Đã đăng nhập: </span>
+          <span id="currentUsername" style="color: #007bff;">Loading...</span>
+        </div>
+        <div>
+          <a href="/decrypt/" style="background-color: #28a745; color: white; padding: 5px 10px; border-radius: 3px; text-decoration: none; margin-right: 10px;">📖 Xem Dữ Liệu</a>
+          <button onclick="logout()" style="background-color: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 3px; cursor: pointer;">🚪 Đăng Xuất</button>
+        </div>
+      </div>
+      
+      <h2>Nhập và Mã Hóa Dữ Liệu Y Tế</h2>
         <form id="ehrDataForm">
             <div class="form-section">
                 <h3>Thông Tin Cơ Bản (Không mã hóa)</h3>
@@ -237,14 +249,57 @@
 
             <div class="form-section">
                 <h3>Nội Dung Chi Tiết (Sẽ được mã hóa)</h3>
+                
+                <!-- Content Input Mode Selection -->
                 <div class="form-group">
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">
+                        Chọn một trong hai cách nhập nội dung:
+                    </p>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: inline-flex; align-items: center; margin-right: 20px;">
+                            <input type="radio" name="contentInputMode" value="text" id="textModeRadio" checked style="margin-right: 8px;">
+                            <span>Nhập văn bản trực tiếp</span>
+                        </label>
+                        <label style="display: inline-flex; align-items: center;">
+                            <input type="radio" name="contentInputMode" value="file" id="fileModeRadio" style="margin-right: 8px;">
+                            <span>Tải lên file</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Text Input Mode -->
+                <div id="textInputSection" class="form-group">
                     <label for="sensitiveContentInput">Nội dung chi tiết:</label>
-            <textarea
-              id="sensitiveContentInput"
-              name="sensitive_content"
-              rows="10"
-              required
-            ></textarea>
+                    <textarea
+                        id="sensitiveContentInput"
+                        name="sensitive_content"
+                        rows="10"
+                        placeholder="Nhập nội dung cần mã hóa..."
+                    ></textarea>
+                </div>
+
+                <!-- File Input Mode -->
+                <div id="fileInputSection" class="form-group" style="display: none;">
+                    <label for="contentFileInput">Chọn file để mã hóa:</label>
+                    <input 
+                        type="file" 
+                        id="contentFileInput"
+                        accept=".txt,.doc,.docx,.pdf,.jpg,.jpeg,.png,.gif,.bmp,.webp,.xlsx,.pptx,.csv"
+                        style="margin-bottom: 10px;"
+                    />
+                    <div style="font-size: 0.85em; color: #666; margin-bottom: 10px;">
+                        <strong>Hỗ trợ:</strong> Text (.txt), Documents (.doc, .docx, .pdf), Images (.jpg, .png, .gif), Excel (.xlsx), PowerPoint (.pptx)<br>
+                        <strong>Kích thước tối đa:</strong> 10MB (5MB cho ảnh)
+                    </div>
+                    <div id="fileStatus" style="font-size: 0.9em; margin-top: 5px;"></div>
+                    
+                    <!-- File Preview -->
+                    <div id="filePreviewContainer" style="display: none; margin-top: 15px; padding: 15px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px;">
+                        <h5 style="margin-top: 0; color: #495057;">Preview:</h5>
+                        <div id="textFilePreview" style="display: none; max-height: 200px; overflow-y: auto; white-space: pre-wrap; background: white; padding: 10px; border-radius: 3px; border: 1px solid #ced4da;"></div>
+                        <img id="imageFilePreview" style="display: none; max-width: 100%; max-height: 300px; border-radius: 5px;" />
+                        <div id="binaryFilePreview" style="display: none; font-family: monospace; font-size: 0.9em; color: #666;"></div>
+                    </div>
                 </div>
             </div>
 
@@ -283,7 +338,7 @@
                 <h3>Khóa Công Khai CP-ABE</h3>
                 <div class="form-group">
             <label for="publicKeyFile"
-              >Tải lên file Public Key CP-ABE (`.bin` hoặc `.json`):</label
+              >Tải lên file Public Key CP-ABE (<code>.bin</code> hoặc <code>.json</code>):</label
             >
             <input type="file" id="publicKeyFile" accept=".bin,.json" />
                     <span id="publicKeyStatus" class="file-upload-status"></span>
@@ -363,10 +418,28 @@
       const sensitiveContentInput = document.getElementById(
         "sensitiveContentInput"
       );
+      
+      // File Upload Elements
+      const textModeRadio = document.getElementById("textModeRadio");
+      const fileModeRadio = document.getElementById("fileModeRadio");
+      const textInputSection = document.getElementById("textInputSection");
+      const fileInputSection = document.getElementById("fileInputSection");
+      const contentFileInput = document.getElementById("contentFileInput");
+      const fileStatus = document.getElementById("fileStatus");
+      const filePreviewContainer = document.getElementById("filePreviewContainer");
+      const textFilePreview = document.getElementById("textFilePreview");
+      const imageFilePreview = document.getElementById("imageFilePreview");
+      const binaryFilePreview = document.getElementById("binaryFilePreview");
 
         // --- Global State ---
         let pyodide = null;
       let abePublicKeyObject = null;
+      let fileContentForEncryption = null; // Stores file content as base64 or text
+      let currentInputMode = "text"; // "text" or "file"
+      
+      // File size limits
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 
       // Sửa URL API để match với URLs đã tạo
       const UPLOAD_API_URL = "/api/ehr/upload/";
@@ -433,22 +506,189 @@
         statusMessageElement.style.display = "block";
         }
 
+      // --- Input Mode Switching ---
+      textModeRadio.addEventListener("change", function() {
+        if (this.checked) {
+          currentInputMode = "text";
+          textInputSection.style.display = "block";
+          fileInputSection.style.display = "none";
+          fileContentForEncryption = null;
+          fileStatus.textContent = "";
+          hideFilePreview();
+        }
+      });
+
+      fileModeRadio.addEventListener("change", function() {
+        if (this.checked) {
+          currentInputMode = "file";
+          textInputSection.style.display = "none";
+          fileInputSection.style.display = "block";
+          sensitiveContentInput.value = "";
+        }
+      });
+
+      function hideFilePreview() {
+        filePreviewContainer.style.display = "none";
+        textFilePreview.style.display = "none";
+        imageFilePreview.style.display = "none";
+        binaryFilePreview.style.display = "none";
+      }
+
+      function showFilePreview(type) {
+        filePreviewContainer.style.display = "block";
+        hideFilePreview();
+        
+        if (type === "text") {
+          textFilePreview.style.display = "block";
+        } else if (type === "image") {
+          imageFilePreview.style.display = "block";
+        } else if (type === "binary") {
+          binaryFilePreview.style.display = "block";
+        }
+      }
+
+      // --- File Upload Handler ---
+      contentFileInput.addEventListener("change", function(event) {
+        const file = event.target.files[0];
+        
+        if (!file) {
+          fileContentForEncryption = null;
+          fileStatus.textContent = "";
+          hideFilePreview();
+          return;
+        }
+
+        // File size validation
+        const isImage = file.type.startsWith('image/');
+        const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+        
+        if (file.size > maxSize) {
+          const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(1);
+          const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+          
+          fileStatus.innerHTML = `<span style="color: red;">❌ File quá lớn: ${fileSizeMB}MB. Tối đa: ${maxSizeMB}MB</span>`;
+          displayStatus(`File "${file.name}" quá lớn. Vui lòng chọn file nhỏ hơn ${maxSizeMB}MB.`, "error");
+          
+          // Clear the input
+          contentFileInput.value = "";
+          fileContentForEncryption = null;
+          hideFilePreview();
+          return;
+        }
+
+        // Show loading status
+        fileStatus.innerHTML = `<span style="color: orange;">📁 Đang xử lý: ${file.name} (${(file.size / 1024).toFixed(1)}KB)...</span>`;
+
+        // Process file based on type
+        processFile(file);
+      });
+
+      function processFile(file) {
+        const fileType = file.type;
+        const fileName = file.name.toLowerCase();
+
+        if (fileType.startsWith('image/')) {
+          processImageFile(file);
+        } else if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
+          processTextFile(file);
+        } else {
+          processBinaryFile(file);
+        }
+      }
+
+      function processTextFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const textContent = e.target.result;
+          fileContentForEncryption = textContent; // Store as text for text files
+          
+          // Show preview
+          const preview = textContent.length > 1000 
+            ? textContent.substring(0, 1000) + "\n\n... (hiển thị 1000 ký tự đầu)"
+            : textContent;
+          textFilePreview.textContent = preview;
+          showFilePreview('text');
+          
+          fileStatus.innerHTML = `<span style="color: green;">✅ Text file sẵn sàng: ${file.name} (${textContent.length} ký tự)</span>`;
+          displayStatus(`File text "${file.name}" đã được tải thành công.`, "success");
+        };
+        reader.onerror = function() {
+          fileStatus.innerHTML = `<span style="color: red;">❌ Lỗi đọc file text</span>`;
+        };
+        reader.readAsText(file, 'UTF-8');
+      }
+
+      function processImageFile(file) {
+        // Show image preview
+        const previewReader = new FileReader();
+        previewReader.onload = function(e) {
+          imageFilePreview.src = e.target.result;
+          showFilePreview('image');
+        };
+        previewReader.readAsDataURL(file);
+
+        // Read for encryption (binary)
+        const binaryReader = new FileReader();
+        binaryReader.onload = function(e) {
+          fileContentForEncryption = arrayBufferToBase64(e.target.result);
+          fileStatus.innerHTML = `<span style="color: green;">✅ Ảnh sẵn sàng: ${file.name}</span>`;
+          displayStatus(`Ảnh "${file.name}" đã được tải thành công.`, "success");
+        };
+        binaryReader.onerror = function() {
+          fileStatus.innerHTML = `<span style="color: red;">❌ Lỗi đọc file ảnh</span>`;
+        };
+        binaryReader.readAsArrayBuffer(file);
+      }
+
+      function processBinaryFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          fileContentForEncryption = arrayBufferToBase64(e.target.result);
+          
+          // Show file info
+          const fileSizeKB = (file.size / 1024).toFixed(1);
+          binaryFilePreview.innerHTML = `
+            <strong>📄 ${file.name}</strong><br>
+            Loại: ${file.type || 'Unknown'}<br>
+            Kích thước: ${fileSizeKB}KB<br>
+            <em>Sẽ được mã hóa dưới dạng binary data</em>
+          `;
+          showFilePreview('binary');
+          
+          fileStatus.innerHTML = `<span style="color: green;">✅ File sẵn sàng: ${file.name}</span>`;
+          displayStatus(`File "${file.name}" đã được tải thành công.`, "success");
+        };
+        reader.onerror = function() {
+          fileStatus.innerHTML = `<span style="color: red;">❌ Lỗi đọc file</span>`;
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      // --- Content Validation Function ---
+      function getContentForEncryption() {
+        if (currentInputMode === "text") {
+          const textContent = sensitiveContentInput.value.trim();
+          if (!textContent) {
+            throw new Error("Vui lòng nhập nội dung văn bản hoặc chọn file để upload.");
+          }
+          return textContent;
+        } else if (currentInputMode === "file") {
+          if (!fileContentForEncryption) {
+            throw new Error("Vui lòng chọn file để upload.");
+          }
+          return fileContentForEncryption;
+        }
+        throw new Error("Vui lòng chọn phương thức nhập nội dung.");
+        }
+
         function arrayBufferToBase64(buffer) {
             const bytes = new Uint8Array(buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-                binary += String.fromCharCode(bytes[i]);
+            // Use more reliable method for binary data
+            let binaryString = "";
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binaryString += String.fromCharCode(bytes[i]);
             }
-        try {
-            return window.btoa(binary);
-        } catch (error) {
-          // Fallback for binary data with invalid characters
-          console.warn("btoa failed, using alternative encoding");
-          const binaryString = Array.from(bytes, (byte) =>
-            String.fromCharCode(byte)
-          ).join("");
-          return btoa(unescape(encodeURIComponent(binaryString)));
-        }
+            return btoa(binaryString);
         }
 
       // --- Policy UI Logic ---
@@ -619,17 +859,19 @@
           loadingStatus.textContent = "Đang khởi tạo hệ thống CP-ABE...";
           // Initialize CP-ABE system như trong medical_upload.js
           await pyodide.runPythonAsync(`
+
 from charm.toolbox.pairinggroup import PairingGroup
 from charm.schemes.abenc.waters11 import Waters11
 
 group = PairingGroup('SS512')
 waters_abe = Waters11(group, uni_size=100)
 
-globals()['_waters11_abe_scheme'] = waters_abe
-globals()['_waters11_group'] = group
-        `);
+globals()["_waters11_abe_scheme"] = waters_abe
+globals()["_waters11_group"] = group
 
-          // Test initialization
+`);
+
+          // Test initialization - DEBUG LINE 870
           const testResult = await pyodide.runPythonAsync(`
 result = "SUCCESS"
 try:
@@ -640,7 +882,7 @@ except NameError as e:
 except Exception as e:
     result = f"ERROR: {str(e)}"
 result
-        `);
+`);
 
           if (testResult !== "SUCCESS") {
             throw new Error(`Lỗi khởi tạo Waters11: ${testResult}`);
@@ -706,17 +948,22 @@ result
 
 
             // Use Pyodide to deserialize binary public key
+            // Pass the bytes data to Pyodide's global namespace first
+            const pkBytesArray = Array.from(pkBytes);
+            pyodide.globals.set("js_pk_bytes_list", pkBytesArray);
+            
             const result = await pyodide.runPythonAsync(`
+
 import base64
 import json
-                    from charm.core.engine.util import bytesToObject
+from charm.core.engine.util import bytesToObject
 
 result_data = None
 error_info = None
 
 try:
     # Convert JS bytes to Python bytes - more efficient method
-    pk_bytes_list = ${JSON.stringify(Array.from(pkBytes))}
+    pk_bytes_list = js_pk_bytes_list
     pk_bytes = bytes(pk_bytes_list)
 
     print(f"Received {len(pk_bytes)} bytes for public key deserialization")
@@ -761,6 +1008,7 @@ else:
     result = json.dumps({"error": error_info or "Unknown error"})
 
 result
+
 `);
 
             // Parse Python result
@@ -847,7 +1095,6 @@ result
           throw new Error("Thiếu Public Key. Vui lòng tải Public Key trước.");
             }
 
-            // 1. Tạo khóa AES ngẫu nhiên bằng Web Crypto API
             const aesKey = await crypto.subtle.generateKey(
                 { name: "AES-GCM", length: 256 },
           true,
@@ -859,10 +1106,15 @@ result
         const aesKeyHex = arrayBufferToHexString(aesKeyRaw);
 
         // 3. Use the encryptAESKeyWithCPABE logic from medical_upload.js
+        
+        // Pass data to Pyodide globals to avoid template literal issues
+        pyodide.globals.set("js_aes_key_hex", aesKeyHex);
+        pyodide.globals.set("js_policy_string", policyString);
 
         let result;
         try {
           result = await pyodide.runPythonAsync(`
+
 from charm.toolbox.pairinggroup import GT, G1, G2, ZR
 import base64
 import json
@@ -894,7 +1146,7 @@ try:
     print(f"✓ Using stored PK object with keys: {list(pk.keys())}")
 
     # Convert AES key hex to bytes
-    aes_key_bytes = bytes.fromhex("${aesKeyHex}")
+    aes_key_bytes = bytes.fromhex(js_aes_key_hex)
 
     # Create a consistent seed from the AES key using SHA256
     key_hash = hashlib.sha256(aes_key_bytes).digest()
@@ -909,7 +1161,7 @@ try:
     web_crypto_key_base64_for_data = base64.b64encode(web_crypto_key_bytes_for_data).decode('utf-8')
 
     # Use the policy string with integer IDs
-    policy_str = "${policyString}"
+    policy_str = js_policy_string
 
     # Encrypt the GT message with CP-ABE
     print("Starting CP-ABE encryption...")
@@ -918,8 +1170,8 @@ try:
     print(f"✓ Ciphertext keys: {list(ciphertext.keys())}")
 
     # Serialize ciphertext components separately to avoid BinNode serialization issues
-                from charm.core.engine.util import objectToBytes
-    
+    from charm.core.engine.util import objectToBytes
+
     # Create a serializable version of ciphertext without policy tree
     serializable_ct = {}
     for key, value in ciphertext.items():
@@ -929,9 +1181,9 @@ try:
         else:
             # Keep other components as-is (they are serializable)
             serializable_ct[key] = value
-    
+
     print(f"✓ Serializable ciphertext keys: {list(serializable_ct.keys())}")
-    
+
     # Now serialize the modified ciphertext
     serialized_ciphertext_bytes = objectToBytes(serializable_ct, group)
     encrypted_kek_final_b64 = base64.b64encode(serialized_ciphertext_bytes).decode('utf-8')
@@ -951,7 +1203,8 @@ except Exception as e:
 
 # Serialize to JSON string for JavaScript
 json.dumps(result)
-        `);
+
+`);
           console.log("Python execution completed");
         } catch (pythonError) {
           console.error("Python execution failed:", pythonError);
@@ -1058,19 +1311,23 @@ json.dumps(result)
         ).value;
         const dataType = document.getElementById("dataTypeSelect").value;
             const policyString = buildAndDisplayPolicyString();
-            const sensitiveContent = sensitiveContentInput.value;
+            
+            // Get content based on input mode
+            let sensitiveContent;
+            try {
+              sensitiveContent = getContentForEncryption();
+            } catch (error) {
+              displayStatus(error.message, "error");
+                submitButton.disabled = false;
+              submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
+                return;
+            }
 
             if (!policyString) {
           displayStatus(
             "Vui lòng chọn ít nhất một thuộc tính cho chính sách truy cập.",
             "error"
           );
-                submitButton.disabled = false;
-          submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
-                return;
-            }
-            if (!sensitiveContent) {
-          displayStatus("Vui lòng nhập nội dung chi tiết cần mã hóa.", "error");
                 submitButton.disabled = false;
           submitButton.textContent = "Mã Hóa và Gửi Dữ Liệu";
                 return;
@@ -1147,6 +1404,16 @@ json.dumps(result)
               "success"
             );
                     ehrDataForm.reset();
+                    
+                    // Reset file upload state
+                    fileContentForEncryption = null;
+                    fileStatus.textContent = "";
+                    hideFilePreview();
+                    currentInputMode = "text";
+                    textModeRadio.checked = true;
+                    textInputSection.style.display = "block";
+                    fileInputSection.style.display = "none";
+                    
                     buildAndDisplayPolicyString();
                 } else {
             // Handle specific error cases
@@ -1237,21 +1504,72 @@ json.dumps(result)
 
         // --- Initial Page Load ---
       document.addEventListener("DOMContentLoaded", async function () {
+        
+        // Kiểm tra authentication trước khi cho phép truy cập trang
+        const accessToken = localStorage.getItem("mainServer_accessToken") || 
+                           localStorage.getItem("access_token");
+        
+        if (!accessToken || accessToken === "dummy_token_for_test") {
+          displayStatus("❌ Bạn chưa đăng nhập! Đang chuyển hướng đến trang đăng nhập...", "error");
+          setTimeout(() => {
+            window.location.href = "/login/";
+          }, 2000);
+          return;
+        }
 
+        // Kiểm tra token validity
+        const isTokenValid = await checkTokenValidity();
+        if (!isTokenValid) {
+          displayStatus("❌ Token không hợp lệ! Đang chuyển hướng đến trang đăng nhập...", "error");
+          // Clear invalid token
+          localStorage.removeItem("mainServer_accessToken");
+          localStorage.removeItem("access_token");
+          setTimeout(() => {
+            window.location.href = "/login/";
+          }, 2000);
+          return;
+        }
 
-            generatePolicyUI();
-            buildAndDisplayPolicyString();
+        // Hiển thị thông tin user
+        try {
+          const response = await fetch("/api/auth/test/", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          });
+          if (response.ok) {
+            const data = await response.json();
+            document.getElementById("currentUsername").textContent = data.user_info.username || "Unknown";
+            document.getElementById("userHeader").style.display = "flex";
+          }
+        } catch (error) {
+          console.error("Error fetching user info:", error);
+        }
+
+        generatePolicyUI();
+        buildAndDisplayPolicyString();
 
         // Enable button cho test mode - không cần đợi Pyodide
         submitButton.disabled = false;
-        displayStatus("Trang đã sẵn sàng. Đang kiểm tra token...", "info");
-
-        // Check token validity (commented out for testing)
-        // await checkTokenValidity();
+        displayStatus("✅ Đã xác thực thành công. Trang đã sẵn sàng.", "success");
 
         publicKeyFileInput.disabled = true;
         await initializePyodide();
         });
+
+      // --- Logout Function ---
+      function logout() {
+        // Clear tokens
+        localStorage.removeItem("mainServer_accessToken");
+        localStorage.removeItem("access_token");
+        
+        // Redirect to login
+        displayStatus("Đang đăng xuất...", "info");
+        setTimeout(() => {
+          window.location.href = "/login/";
+        }, 1000);
+      }
     </script>
 </body>
 </html>

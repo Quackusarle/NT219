@@ -13,7 +13,7 @@ try:
     from charm.toolbox.msp import MSP
     
     # Lấy tên nhóm từ settings
-    pairing_group_name = getattr(settings, 'CPABE_PAIRING_GROUP', 'BN254')
+    pairing_group_name = getattr(settings, 'CPABE_PAIRING_GROUP', 'SS512')
     CHARM_GROUP_FOR_POLICY_CHECK = PairingGroup(pairing_group_name)
     MSP_UTIL_FOR_POLICY_CHECK = MSP(CHARM_GROUP_FOR_POLICY_CHECK, verbose=False)
     logger.info(f"Charm-Crypto PairingGroup '{pairing_group_name}' and MSP initialized for policy checking.")
@@ -31,25 +31,6 @@ class CanUploadTextDataPermission(BasePermission):
     def has_permission(self, request, view):
         # Hiện tại chỉ cần user đã được authenticated
         return request.user and request.user.is_authenticated
-
-class CanAccessEHRDataPermission(BasePermission):
-    """
-    Permission để kiểm tra xem user có thể truy cập EHR data không
-    Có thể mở rộng với ABAC logic trong tương lai
-    """
-    
-    def has_permission(self, request, view):
-        # Hiện tại chỉ cần user đã được authenticated
-        return request.user and request.user.is_authenticated
-    
-    def has_object_permission(self, request, view, obj):
-        """
-        Kiểm tra permission cho object cụ thể
-        Có thể implement logic ABAC ở đây
-        """
-        # Ví dụ: chỉ cho phép user truy cập data mà họ đã tạo
-        # hoặc theo policy ABAC phức tạp hơn
-        return True  # Tạm thời cho phép tất cả 
 
 class SatisfiesCPABEPolicyPermission(BasePermission):
     """
